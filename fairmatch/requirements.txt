@@ -1,0 +1,11 @@
+spacy
+scikit-learn
+scipy
+numpy
+sentence-transformers
+openai
+fairlearn
+pymupdf
+python-docx
+pytest
+ruff
