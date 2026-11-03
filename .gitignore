@@ -3,3 +3,10 @@ __pycache__/
 .superpowers/
 .venv/
 *.pyc
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+!.env.example
+.ruff_cache/

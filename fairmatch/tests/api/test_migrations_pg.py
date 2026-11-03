@@ -14,6 +14,9 @@ ROOT = Path(__file__).resolve().parents[2]
 @pytest.mark.db
 def test_migration_upgrade_head_creates_hnsw_indexes(monkeypatch):
     url = os.environ["TEST_DATABASE_URL"]
+    if url.startswith("postgresql://"):
+        pytest.fail("TEST_DATABASE_URL must use the postgresql+psycopg:// driver prefix "
+                    "(psycopg2 is not installed)")
     monkeypatch.setenv("DATABASE_URL", url)
     get_settings.cache_clear()
     cfg = Config(str(ROOT / "alembic.ini"))
@@ -29,12 +32,12 @@ def test_migration_upgrade_head_creates_hnsw_indexes(monkeypatch):
             hnsw = [d for d in defs if "hnsw" in d and "vector_cosine_ops" in d]
             assert any("candidates" in d for d in hnsw)
             assert any("opportunities" in d for d in hnsw)
+    finally:
         command.downgrade(cfg, "base")
         with engine.connect() as conn:
             tables = [r[0] for r in conn.execute(text(
                 "SELECT tablename FROM pg_tables WHERE schemaname='public' "
                 "AND tablename <> 'alembic_version'"))]
-            assert tables == []
-    finally:
+        assert tables == []
         engine.dispose()
         get_settings.cache_clear()

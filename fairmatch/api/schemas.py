@@ -12,9 +12,11 @@ class RegisterIn(BaseModel):
     @field_validator("email")
     @classmethod
     def _email(cls, v: str) -> str:
-        v = v.strip().lower()
+        v = reject_nul(v).strip().lower()
         if not v:
             raise ValueError("email must not be blank")
+        if len(v) > 320:
+            raise ValueError("email must be at most 320 characters")
         return v
 
     @field_validator("password")
@@ -181,3 +183,11 @@ class RunSummaryOut(BaseModel):
 
 class RunOut(RunSummaryOut):
     allocations: list[AllocationOut]
+
+
+SimilarLimitQuery = Annotated[int, Query(ge=1, le=50)]
+
+
+class SimilarCandidateOut(BaseModel):
+    candidate_id: int
+    similarity: float

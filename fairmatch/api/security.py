@@ -29,9 +29,18 @@ def create_access_token(user_id: int, role: str) -> str:
 
 def decode_access_token(token: str) -> dict:
     try:
-        claims = jwt.decode(token, get_settings().jwt_secret, algorithms=[_ALGORITHM])
+        claims = jwt.decode(
+            token,
+            get_settings().jwt_secret,
+            algorithms=[_ALGORITHM],
+            options={"require_exp": True, "verify_exp": True},
+        )
     except JWTError as exc:
         raise ValueError("invalid token") from exc
-    if not isinstance(claims.get("sub"), str):
+    sub, role = claims.get("sub"), claims.get("role")
+    if not (isinstance(sub, str) and sub.isascii() and sub.isdigit() and int(sub) > 0):
+        raise ValueError("invalid token")
+    exp = claims.get("exp")
+    if not isinstance(role, str) or isinstance(exp, bool) or not isinstance(exp, int | float):
         raise ValueError("invalid token")  # noqa: TRY004
     return claims

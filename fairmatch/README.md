@@ -16,7 +16,7 @@ using semantic similarity + skill matching + seat-constrained allocation.
 | Explainability (grounded reasons, optional LLM narrative) | Done | `core/explain.py` |
 | Fairness audit (selection rates, four-fifths rule) | Done | `core/fairness.py` |
 | End-to-end pipeline | Done | `core/pipeline.py` |
-| Backend API (FastAPI) | Planned next |
+| Backend API (FastAPI, PostgreSQL + pgvector, Celery) | Done | `api/` |
 | Frontend Dashboard (React) | Planned next |
 
 ## How to run the demo
@@ -46,7 +46,90 @@ conflicts by maximising the total score under each posting's seat limit.
 The demo runs Hungarian and Gale-Shapley side by side and compares their
 total score, blocking pairs and runtime.
 
+## Backend API
+
+### Setup
+
+```bash
+pip install -r requirements.txt
+docker compose -f docker-compose.dev.yml up -d      # PostgreSQL + pgvector, Redis
+export JWT_SECRET=<long random string>
+export DATABASE_URL=postgresql+psycopg://fairmatch:fairmatch@localhost:5432/fairmatch
+export REDIS_URL=redis://localhost:6379/0
+alembic upgrade head
+python -m api.cli create-admin EMAIL PASSWORD
+uvicorn api.main:create_app --factory
+celery -A api.worker.celery_app worker               # separate terminal
+celery -A api.worker.celery_app worker --pool=solo   # on Windows
+```
+
+Windows PowerShell form of the environment setup:
+
+```powershell
+$env:JWT_SECRET = "<long random string>"
+$env:DATABASE_URL = "postgresql+psycopg://fairmatch:fairmatch@localhost:5432/fairmatch"
+$env:REDIS_URL = "redis://localhost:6379/0"
+```
+
+`JWT_SECRET` (non-blank) and `DATABASE_URL` must be set in the alembic step, the
+API terminal and the worker terminal. Without `DATABASE_URL` everything falls
+back to a local SQLite file, not the PostgreSQL container.
+
+### Environment variables
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | SQLAlchemy URL, e.g. `postgresql+psycopg://fairmatch:fairmatch@localhost:5432/fairmatch` |
+| `REDIS_URL` | Redis for the embedding cache and Celery broker. Default `redis://localhost:6379/0`; `fakeredis://` uses an in-memory fake (tests, no Redis needed) |
+| `JWT_SECRET` | Required. Secret used to sign access tokens; the app refuses to start if it is unset or blank |
+| `ACCESS_TOKEN_MINUTES` | Access token lifetime in minutes. Default 60 |
+| `CELERY_EAGER` | Default `false`. `true` runs tasks inline in the API process, so no worker or broker is needed (tests, quick local dev) |
+| `OPENAI_API_KEY` | Optional; enables LLM parsing and narratives |
+| `OPENAI_MODEL` | Optional; default `gpt-4o-mini` |
+
+### Endpoints
+
+| Method and path | Role | Success | Errors |
+|---|---|---|---|
+| `GET /health` | none | 200 | |
+| `POST /auth/register` | none | 201 | 409, 422 |
+| `POST /auth/login` | none | 200 | 401, 422 |
+| `POST /candidates` (resume text or file) | candidate or admin | 201 | 400, 401, 409, 422 |
+| `GET /candidates/me` | candidate or admin | 200 | 401, 404 |
+| `GET /candidates`, `GET /candidates/{id}` | admin | 200 | 401, 403, 404, 422 |
+| `PUT/GET /candidates/{id}/demographics` | admin | 200 | 401, 403, 404, 422 |
+| `POST /opportunities` | admin | 201 | 401, 403, 422 |
+| `GET /opportunities`, `GET /opportunities/{id}` | any user | 200 | 401, 404, 422 |
+| `GET /opportunities/{id}/similar-candidates?limit=10` (1..50) | admin | 200 | 401, 403, 404, 422 |
+| `POST /runs` (`hungarian`, `gale_shapley`, `both`) | admin | 202 | 401, 403, 422, 503 |
+| `GET /runs`, `GET /runs/{id}`, `GET /runs/{id}/explanations` | admin | 200 | 401, 403, 404, 422 |
+
+Similarity search uses pgvector cosine distance on PostgreSQL and a Python
+cosine computation elsewhere. It returns only `candidate_id` and `similarity`,
+sorted by similarity descending (ties by lower id). Candidates or opportunities
+without an embedding are omitted / give an empty list.
+
+### Privacy rules
+
+- Demographic group labels are admin-only and used only by the fairness audit.
+  They are never part of scoring, explanations or candidate-facing responses.
+- Candidates see only their own profile. Allocation runs and explanations are admin-only.
+- Every non-2xx response has the shape `{"detail": "<message>"}`, including unhandled errors (500 `Internal server error`).
+
+### Known limits
+
+- Resume uploads are limited to 5 MiB; run a reverse proxy with a body-size limit in production.
+- Opportunity capacity is at most 10000; a run requires candidates x seats <= 25,000,000.
+- A run killed mid-way stays `running`, and a run that was never enqueued stays `pending`; there is no reclaim yet.
+- The PostgreSQL path is verified offline only unless the `TEST_DATABASE_URL` tests were run.
+
+### Tests
+
+```bash
+pytest -m "not slow and not llm and not db"
+TEST_DATABASE_URL=postgresql+psycopg://fairmatch:fairmatch@localhost:5432/fairmatch pytest -m db
+```
+
 ## Next steps
 
-- Wrap all of this in a FastAPI backend with upload endpoints
 - Build a simple React dashboard so this can be used without editing code

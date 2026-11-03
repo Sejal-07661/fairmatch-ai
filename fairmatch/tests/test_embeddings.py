@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+import core.embeddings as emb_mod
 from core.embeddings import SentenceTransformerEmbedder, cosine_matrix
 
 
@@ -65,3 +66,50 @@ def test_bge_relates_ml_and_ai():
     v = emb.encode(["machine learning engineer", "AI engineer", "pastry chef"])
     m = cosine_matrix(v[:1], v[1:])
     assert m[0, 0] > m[0, 1]
+
+
+class _OkModel:
+    def encode(self, texts, normalize_embeddings=True):
+        return np.ones((len(texts), 3)) / np.sqrt(3)
+
+
+def _patch(monkeypatch, behaviours):
+    calls = []
+
+    def fake(*args, **kwargs):
+        calls.append(kwargs)
+        b = behaviours[len(calls) - 1]
+        if isinstance(b, Exception):
+            raise b
+        return b
+
+    monkeypatch.setattr(emb_mod, "SentenceTransformer", fake)
+    return calls
+
+
+def test_cached_model_loaded_locally_without_network(monkeypatch):
+    calls = _patch(monkeypatch, [_OkModel()])
+    out = SentenceTransformerEmbedder().encode(["x"])
+    assert out.shape == (1, 3)
+    assert calls == [{"local_files_only": True}]
+
+
+def test_cache_miss_falls_back_to_online_load(monkeypatch):
+    calls = _patch(monkeypatch, [OSError("miss"), _OkModel()])
+    out = SentenceTransformerEmbedder().encode(["x"])
+    assert out.shape == (1, 3)
+    assert calls == [{"local_files_only": True}, {}]
+
+
+def test_load_both_fail_raises_runtimeerror(monkeypatch):
+    _patch(monkeypatch, [OSError("a"), ConnectionError("b")])
+    with pytest.raises(RuntimeError, match="bge-small-en-v1.5.*online") as ei:
+        SentenceTransformerEmbedder().encode(["x"])
+    assert isinstance(ei.value.__cause__, ConnectionError)
+
+
+def test_non_network_error_not_swallowed(monkeypatch):
+    calls = _patch(monkeypatch, [ValueError("bug"), _OkModel()])
+    with pytest.raises(ValueError):
+        SentenceTransformerEmbedder().encode(["x"])
+    assert len(calls) == 1

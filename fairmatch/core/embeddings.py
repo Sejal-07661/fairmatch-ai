@@ -1,6 +1,32 @@
+import logging
 from typing import Protocol
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
+
+
+def _network_errors() -> tuple[type[BaseException], ...]:
+    errs: list[type[BaseException]] = [OSError, ConnectionError, TimeoutError]
+    try:
+        import httpx
+
+        errs.append(httpx.TransportError)
+    except ImportError:
+        pass
+    try:
+        from huggingface_hub import errors as hf
+
+        errs += [hf.HfHubHTTPError, hf.LocalEntryNotFoundError, hf.OfflineModeIsEnabled]
+    except (ImportError, AttributeError):
+        pass
+    return tuple(errs)
+
+
+def SentenceTransformer(*args, **kwargs):
+    from sentence_transformers import SentenceTransformer as _ST
+
+    return _ST(*args, **kwargs)
 
 
 class Embedder(Protocol):
@@ -18,9 +44,23 @@ class SentenceTransformerEmbedder:
 
     def _load(self):
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
-
-            self._model = SentenceTransformer(self.model_name)
+            # Local cache first: avoids Hub round-trips (and their long retry/backoff
+            # when the network is down). Only on a cache miss do we go online.
+            try:
+                self._model = SentenceTransformer(self.model_name, local_files_only=True)
+            except _network_errors() as miss:
+                logger.warning(
+                    "Model %s not in local cache (%s); downloading from Hugging Face Hub",
+                    self.model_name,
+                    miss,
+                )
+                try:
+                    self._model = SentenceTransformer(self.model_name)
+                except _network_errors() as err:
+                    raise RuntimeError(
+                        f"Embedding model {self.model_name!r} is not available locally and the "
+                        "Hub is unreachable; it must be downloaded once while online."
+                    ) from err
         return self._model
 
     def encode(self, texts: list[str]) -> np.ndarray:

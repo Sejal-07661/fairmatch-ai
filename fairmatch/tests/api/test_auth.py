@@ -211,3 +211,72 @@ def test_cli_main_creates_admin_and_prints_id(session, capsys):
     session.expire_all()
     found = session.scalars(select(User).where(User.email == "root@example.com")).one()
     assert found.role == "admin"
+
+
+def test_register_nul_and_overlong_email(client):
+    pw = "password123"
+    assert (
+        client.post("/auth/register", json={"email": "a\x00b@x.com", "password": pw}).status_code
+        == 422
+    )
+    long_local = "a" * (321 - len("@x.com"))
+    assert (
+        client.post(
+            "/auth/register", json={"email": long_local + "@x.com", "password": pw}
+        ).status_code
+        == 422
+    )
+    ok = "a" * (320 - len("@x.com")) + "@x.com"
+    assert len(ok) == 320
+    assert client.post("/auth/register", json={"email": ok, "password": pw}).status_code == 201
+
+
+def test_login_nul_or_overlong_username_401_without_db_query(client):
+    from sqlalchemy import event
+
+    from api.db import get_engine
+
+    unknown = _login(client, email="nobody@example.com")
+    stmts = []
+
+    def spy(conn, cursor, statement, *a):
+        stmts.append(statement)
+
+    event.listen(get_engine(), "before_cursor_execute", spy)
+    try:
+        for name in ("a\x00b@x.com", "a" * 321, "a" * 100_000):
+            r = _login(client, email=name)
+            assert r.status_code == 401
+            assert r.json() == unknown.json() == {"detail": "Invalid credentials"}
+        assert stmts == []
+    finally:
+        event.remove(get_engine(), "before_cursor_execute", spy)
+
+
+def _raw_token(claims, secret="test-secret"):
+    return jwt.encode(claims, secret, algorithm="HS256")
+
+
+def test_token_claim_validation(client, session):
+    from api.security import create_access_token
+
+    u = _seed(session)
+    _me_route(client)
+    good = {"sub": str(u.id), "role": "candidate", "exp": 9999999999}
+    assert (
+        client.get("/_me", headers=_hdr(create_access_token(u.id, "candidate"))).status_code == 200
+    )
+    assert client.get("/_me", headers=_hdr(_raw_token(good))).status_code == 200
+    bad = [
+        {k: v for k, v in good.items() if k != "exp"},
+        {**good, "exp": "9999999999"},
+        {**good, "exp": 1},
+        {**good, "sub": "0"},
+        {**good, "sub": "-3"},
+        {**good, "sub": "abc"},
+        {**good, "sub": u.id},
+        {k: v for k, v in good.items() if k != "role"},
+        {**good, "role": 5},
+    ]
+    for claims in bad:
+        assert client.get("/_me", headers=_hdr(_raw_token(claims))).status_code == 401, claims

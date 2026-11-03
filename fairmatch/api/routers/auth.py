@@ -35,6 +35,9 @@ def login(
     session: Annotated[Session, Depends(get_session)],
 ) -> TokenOut:
     email = form.username.strip().lower()
+    if chr(0) in email or len(email) > 320:
+        verify_password(form.password, _DUMMY_HASH)
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     user = session.scalars(select(User).where(User.email == email)).first()
     ok = verify_password(form.password, user.password_hash if user else _DUMMY_HASH)
     if user is None or not ok:
