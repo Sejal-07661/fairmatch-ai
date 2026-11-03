@@ -1,6 +1,6 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["slow: slow tests (real models)", "llm: tests needing a live LLM API key"]
+markers = ["slow: slow tests (real models)", "llm: tests needing a live LLM API key", "db: tests needing real PostgreSQL via TEST_DATABASE_URL"]
 
 [tool.ruff]
 line-length = 100

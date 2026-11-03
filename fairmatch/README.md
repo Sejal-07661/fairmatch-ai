@@ -35,7 +35,7 @@ skills, the score table, both allocations side by side (total score, blocking
 pairs, runtime), a fairness report per algorithm, and every explanation. Group
 labels in the demo are assigned alternately and are demo-only.
 
-Tests: `python -m pytest -m "not slow and not llm" -q`; lint: `python -m ruff check .`
+Tests: `python -m pytest -m "not slow and not llm and not db" -q`; lint: `python -m ruff check .`
 
 ## Why the Hungarian Algorithm matters here
 

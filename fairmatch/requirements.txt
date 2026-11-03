@@ -9,3 +9,17 @@ pymupdf
 python-docx
 pytest
 ruff
+fastapi
+uvicorn
+pydantic-settings
+sqlalchemy
+alembic
+psycopg[binary]
+pgvector
+celery
+redis
+fakeredis
+bcrypt
+python-jose
+python-multipart
+httpx
