@@ -35,3 +35,35 @@ def get_celery_app() -> Celery:
 @celeryd_init.connect
 def _configure_on_worker_start(*args, **kwargs):
     configure_celery()
+
+
+@celery_app.task(name="api.embed_profile")
+def embed_profile(kind: str, row_id: int) -> None:
+    """Embed a stored candidate/opportunity. Idempotent; no-op if row is gone."""
+    import logging
+
+    from api.db import SessionLocal
+    from api.models import Candidate, Opportunity
+    from api.services import embedding
+
+    log = logging.getLogger(__name__)
+    model = {"candidate": Candidate, "opportunity": Opportunity}.get(kind)
+    if model is None:
+        log.warning("embed_profile: unknown kind %r", kind)
+        return
+    session = SessionLocal()
+    try:
+        row = session.get(model, row_id)
+        if row is None:
+            return
+        text = row.resume_text if kind == "candidate" else row.posting_text
+        try:
+            vec = embedding.get_embedder().encode([text])[0]
+            row.embedding = [float(x) for x in vec]
+        except Exception:
+            log.exception("embedding failed for %s %s", kind, row_id)
+            session.rollback()
+            return
+        session.commit()
+    finally:
+        session.close()
