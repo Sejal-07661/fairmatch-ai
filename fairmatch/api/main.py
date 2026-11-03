@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from api.config import get_settings
+from api.routers import auth
 from api.worker import configure_celery
 
 
@@ -13,4 +14,5 @@ def create_app() -> FastAPI:
     def health() -> dict:
         return {"status": "ok"}
 
+    app.include_router(auth.router)
     return app
