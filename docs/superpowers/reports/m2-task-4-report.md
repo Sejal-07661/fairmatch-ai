@@ -15,3 +15,6 @@ Tests: new 9 pass; fast suite 130 pass excluding Task 2's in-progress tests/api/
 - worker.py: @celeryd_init.connect handler calls configure_celery(); tested by sending the signal.
 - Tests: str, lone wrong-size (2B, 8B, 768-dim), empty bytes, bytearray, NaN blobs via get_embedder.
 - Recheck R1-R7 skipped: R1/R2/R5/R6/R7 are outside my files; R3 (cached celery backend) and R4 (mixed-width heal, double inner call) skipped as not clearly small/safe; R4 is largely mitigated now that get_embedder fixes dim.
+
+## Fix note round 3 (model reload)
+- embedding.py: `_inner_embedder()` is an lru_cache(maxsize=1) factory so the lazy SentenceTransformerEmbedder is built once per process; get_embedder() still builds a CachedEmbedder per call with a fresh get_redis(), so REDIS_URL changes apply. Tests clear it via `_inner_embedder.cache_clear()`.

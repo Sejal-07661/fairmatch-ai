@@ -3,7 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from api.config import get_settings
-from api.routers import auth, candidates, opportunities
+from api.routers import auth, candidates, opportunities, runs
 from api.worker import configure_celery
 
 
@@ -19,6 +19,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(candidates.router)
     app.include_router(opportunities.router)
+    app.include_router(runs.router)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(request: Request, exc: RequestValidationError) -> JSONResponse:

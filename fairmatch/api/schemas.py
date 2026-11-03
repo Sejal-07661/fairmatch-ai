@@ -1,4 +1,5 @@
-from typing import Annotated
+from datetime import datetime
+from typing import Annotated, Literal
 
 from fastapi import Path, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -126,3 +127,57 @@ class OpportunityOut(BaseModel):
     capacity: int
     min_experience_years: float
     min_education_level: int
+
+
+RUN_ALGORITHMS = ("hungarian", "gale_shapley", "both")
+
+
+class RunIn(BaseModel):
+    algorithm: Literal["hungarian", "gale_shapley", "both"]
+
+
+class RunCreatedOut(BaseModel):
+    id: int
+    status: str
+
+
+class AllocationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    algorithm: str
+    candidate_id: int
+    opportunity_id: int
+    score: float
+    breakdown: dict
+    reasons: list[str]
+    narrative: str
+    used_fallback: bool
+
+
+class ExplanationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    algorithm: str
+    candidate_id: int
+    opportunity_id: int
+    score: float
+    reasons: list[str]
+    narrative: str
+    used_fallback: bool
+
+
+class RunSummaryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    algorithm: str
+    status: str
+    error: str | None
+    metrics: dict | None
+    fairness: dict | None
+    created_at: datetime
+    finished_at: datetime | None
+
+
+class RunOut(RunSummaryOut):
+    allocations: list[AllocationOut]

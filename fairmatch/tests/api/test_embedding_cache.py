@@ -134,6 +134,7 @@ class Dim384:
 def _via_get_embedder(monkeypatch, r):
     import api.services.embedding as emb
 
+    emb._inner_embedder.cache_clear()
     monkeypatch.setattr(emb, "SentenceTransformerEmbedder", Dim384)
     monkeypatch.setattr(emb, "get_redis", lambda: r)
     return emb.get_embedder()
@@ -154,3 +155,48 @@ def test_nan_blob_of_right_size_is_miss(monkeypatch, r):
     out = e.encode(["x"])
     assert np.all(np.isfinite(out))
     assert np.all(np.isfinite(np.frombuffer(r.get(e._key("x")), dtype=np.float32)))
+
+
+def test_inner_embedder_shared_and_lazy(monkeypatch):
+    import api.services.embedding as emb
+
+    built = []
+
+    class Stub:
+        def __init__(self):
+            built.append(1)
+            self.loaded = False
+
+        def encode(self, texts):
+            self.loaded = True
+            return np.ones((len(texts), 384))
+
+    emb._inner_embedder.cache_clear()
+    monkeypatch.setattr(emb, "SentenceTransformerEmbedder", Stub)
+    try:
+        a, b = emb.get_embedder(), emb.get_embedder()
+        assert a is not b
+        assert a.inner is b.inner
+        assert built == [1]
+        assert a.inner.loaded is False
+    finally:
+        emb._inner_embedder.cache_clear()
+
+
+def test_get_embedder_reflects_changed_redis_url(monkeypatch):
+    import api.services.embedding as emb
+    from api.config import get_settings
+
+    emb._inner_embedder.cache_clear()
+    monkeypatch.setattr(emb, "SentenceTransformerEmbedder", Dim384)
+    try:
+        monkeypatch.setenv("REDIS_URL", "fakeredis://")
+        get_settings.cache_clear()
+        assert isinstance(emb.get_embedder().client, fakeredis.FakeRedis)
+        monkeypatch.setenv("REDIS_URL", "redis://example:6379/2")
+        get_settings.cache_clear()
+        c = emb.get_embedder().client
+        assert not isinstance(c, fakeredis.FakeRedis)
+        assert c.connection_pool.connection_kwargs["host"] == "example"
+    finally:
+        emb._inner_embedder.cache_clear()

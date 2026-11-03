@@ -67,3 +67,20 @@ def embed_profile(kind: str, row_id: int) -> None:
         session.commit()
     finally:
         session.close()
+
+
+@celery_app.task(name="api.run_allocation")
+def run_allocation(run_id: int) -> None:
+    """Execute an allocation run. Idempotent per run id; never raises."""
+    import logging
+
+    from api.db import SessionLocal
+    from api.services.runs import execute_run
+
+    session = SessionLocal()
+    try:
+        execute_run(session, run_id)
+    except Exception:
+        logging.getLogger(__name__).exception("run_allocation %s crashed", run_id)
+    finally:
+        session.close()

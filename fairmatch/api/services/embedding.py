@@ -1,5 +1,6 @@
 import hashlib
 import logging
+from functools import lru_cache
 
 import numpy as np
 import redis
@@ -85,5 +86,11 @@ class CachedEmbedder:
         return out
 
 
+@lru_cache(maxsize=1)
+def _inner_embedder() -> Embedder:
+    """One lazy-loading model wrapper per process (tests: _inner_embedder.cache_clear())."""
+    return SentenceTransformerEmbedder()
+
+
 def get_embedder() -> Embedder:
-    return CachedEmbedder(SentenceTransformerEmbedder(), get_redis(), dim=EMBEDDING_DIM)
+    return CachedEmbedder(_inner_embedder(), get_redis(), dim=EMBEDDING_DIM)
