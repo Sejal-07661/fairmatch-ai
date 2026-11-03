@@ -4,4 +4,3 @@ markers = ["slow: slow tests (real models)", "llm: tests needing a live LLM API 
 
 [tool.ruff]
 line-length = 100
-extend-exclude = ["app", "demo.py"]  # legacy prototype; removed in Task 11

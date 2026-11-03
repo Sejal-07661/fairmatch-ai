@@ -35,8 +35,8 @@ class OpenAIClient:
         from openai import OpenAI
 
         self._client = OpenAI(api_key=api_key or os.environ.get("OPENAI_API_KEY"),
-            timeout=30,
-            max_retries=1,
+            timeout=15,
+            max_retries=0,
         )
         self._model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 

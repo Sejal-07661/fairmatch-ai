@@ -22,3 +22,9 @@ class _FakeEmbedder:
 @pytest.fixture
 def fake_embedder():
     return _FakeEmbedder()
+
+
+@pytest.fixture(autouse=True)
+def _no_openai_key(request, monkeypatch):
+    if request.node.get_closest_marker("llm") is None:
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
