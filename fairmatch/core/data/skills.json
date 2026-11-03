@@ -1,0 +1,342 @@
+[
+ {
+  "name": "python",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "java",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "c++",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "javascript",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "typescript",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "sql",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "nosql",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "node.js",
+  "aliases": [
+   "nodejs"
+  ],
+  "related": [
+   "javascript",
+   "express.js"
+  ]
+ },
+ {
+  "name": "express.js",
+  "aliases": [
+   "expressjs"
+  ],
+  "related": []
+ },
+ {
+  "name": "react.js",
+  "aliases": [
+   "react"
+  ],
+  "related": [
+   "javascript",
+   "html",
+   "css"
+  ]
+ },
+ {
+  "name": "angular",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "vue.js",
+  "aliases": [
+   "vue"
+  ],
+  "related": []
+ },
+ {
+  "name": "fastapi",
+  "aliases": [],
+  "related": [
+   "python"
+  ]
+ },
+ {
+  "name": "flask",
+  "aliases": [],
+  "related": [
+   "python"
+  ]
+ },
+ {
+  "name": "django",
+  "aliases": [],
+  "related": [
+   "python"
+  ]
+ },
+ {
+  "name": "spring boot",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "machine learning",
+  "aliases": [],
+  "related": [
+   "artificial intelligence",
+   "deep learning",
+   "scikit-learn"
+  ]
+ },
+ {
+  "name": "deep learning",
+  "aliases": [],
+  "related": [
+   "tensorflow",
+   "pytorch"
+  ]
+ },
+ {
+  "name": "artificial intelligence",
+  "aliases": [
+   "ai"
+  ],
+  "related": []
+ },
+ {
+  "name": "natural language processing",
+  "aliases": [
+   "nlp"
+  ],
+  "related": [
+   "machine learning"
+  ]
+ },
+ {
+  "name": "computer vision",
+  "aliases": [],
+  "related": [
+   "deep learning"
+  ]
+ },
+ {
+  "name": "data analysis",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "data science",
+  "aliases": [],
+  "related": [
+   "pandas",
+   "numpy",
+   "data analysis"
+  ]
+ },
+ {
+  "name": "data engineering",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "pandas",
+  "aliases": [],
+  "related": [
+   "numpy"
+  ]
+ },
+ {
+  "name": "numpy",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "scikit-learn",
+  "aliases": [
+   "sklearn"
+  ],
+  "related": []
+ },
+ {
+  "name": "tensorflow",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "pytorch",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "mongodb",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "mysql",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "postgresql",
+  "aliases": [
+   "postgres"
+  ],
+  "related": []
+ },
+ {
+  "name": "redis",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "firebase",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "rabbitmq",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "kafka",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "docker",
+  "aliases": [],
+  "related": [
+   "kubernetes"
+  ]
+ },
+ {
+  "name": "kubernetes",
+  "aliases": [
+   "k8s"
+  ],
+  "related": []
+ },
+ {
+  "name": "aws",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "azure",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "gcp",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "git",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "github",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "linux",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "rest api",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "graphql",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "microservices",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "html",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "css",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "bootstrap",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "tailwind",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "excel",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "power bi",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "tableau",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "project management",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "communication",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "leadership",
+  "aliases": [],
+  "related": []
+ },
+ {
+  "name": "teamwork",
+  "aliases": [],
+  "related": []
+ }
+]
