@@ -1,0 +1,13 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: fairmatch
+      POSTGRES_USER: fairmatch
+      POSTGRES_PASSWORD: fairmatch
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
