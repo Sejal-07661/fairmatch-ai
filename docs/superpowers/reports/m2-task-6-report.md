@@ -9,3 +9,6 @@ Decisions
 - group_of only when every candidate has demographics; otherwise metrics.fairness_skipped. Fairness JSON (admin-only) contains group names; explanations/errors/logs never do.
 - Pending/running/failed runs return empty allocations/explanations (only done runs expose rows).
 - 21 tests in test_runs.py; idempotency tested sequentially.
+
+## Follow-up: GET /runs ordering
+GET /runs now orders by id descending (newest first) so paginated page 1 is the newest. Test test_list_runs_newest_first added (red first). No README/openapi text mentioned ordering; schema unchanged, export_openapi --check passes.

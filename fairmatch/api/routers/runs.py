@@ -53,7 +53,7 @@ def start_run(body: RunIn, admin: Admin, session: Sess):
 
 @router.get("", response_model=list[RunSummaryOut])
 def list_runs(_admin: Admin, session: Sess, limit: LimitQuery = 50, offset: OffsetQuery = 0):
-    q = select(AllocationRun).order_by(AllocationRun.id).limit(limit).offset(offset)
+    q = select(AllocationRun).order_by(AllocationRun.id.desc()).limit(limit).offset(offset)
     return list(session.scalars(q))
 
 

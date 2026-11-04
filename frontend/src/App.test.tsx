@@ -6,10 +6,13 @@ import { makeClient, makeToken, renderApp } from "./test/render";
 import { saveToken } from "./auth/token";
 import { http, HttpResponse } from "msw";
 import { server } from "./test/server";
-import { makeCandidate, makeOpportunity } from "./test/fixtures";
+import { makeCandidate, makeOpportunity, makeRun } from "./test/fixtures";
 
 beforeEach(() => {
   server.use(
+    http.get("/api/runs/:id/explanations", () => HttpResponse.json([])),
+    http.get("/api/runs/:id", () => HttpResponse.json(makeRun({ id: 3, status: "done", allocations: [] }))),
+    http.get("/api/runs", () => HttpResponse.json([])),
     http.get("/api/candidates/me", () => HttpResponse.json(makeCandidate())),
     http.get("/api/candidates/:id/demographics", () => HttpResponse.json({ candidate_id: 3, group_label: "A" })),
     http.get("/api/candidates/:id", () => HttpResponse.json(makeCandidate({ id: 3 }))),
@@ -97,12 +100,17 @@ describe("App", () => {
   it.each([
     ["/opportunities", "Opportunities"],
     ["/candidates", "Candidates"],
-    ["/runs/3", "RunDetail"],
     ["/runs", "Runs"],
   ])("test_admin_route_%s", async (route, name) => {
     saveToken(makeToken({ role: "admin" }));
     renderApp(<App />, { route });
     expect(await screen.findByRole("heading", { name })).toBeInTheDocument();
+  });
+
+  it("test_admin_run_detail_loads", async () => {
+    saveToken(makeToken({ role: "admin" }));
+    renderApp(<App />, { route: "/runs/3" });
+    expect(await screen.findByRole("heading", { name: "Run #3" })).toBeInTheDocument();
   });
 
   it("test_admin_opportunity_detail_loads", async () => {

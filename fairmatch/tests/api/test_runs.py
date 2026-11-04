@@ -332,3 +332,15 @@ def test_allocation_ids_map_back_to_database_ids(session, client):
         unalloc = set(body["metrics"][algo]["unallocated"])
         assert unalloc <= cids and placed | unalloc == cids and not placed & unalloc
         assert len(unalloc) == 1  # 3 candidates, 2 seats
+
+
+def test_list_runs_newest_first(session, client):
+    h = _admin(session, client)
+    _seed(session)
+    ids = [client.post("/runs", json={"algorithm": "hungarian"}, headers=h).json()["id"]
+           for _ in range(3)]
+    newest = sorted(ids, reverse=True)
+    r = client.get("/runs", headers=h)
+    assert r.status_code == 200 and [x["id"] for x in r.json()] == newest
+    assert [x["id"] for x in client.get("/runs?limit=2", headers=h).json()] == newest[:2]
+    assert [x["id"] for x in client.get("/runs?offset=2", headers=h).json()] == newest[2:]
