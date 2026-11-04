@@ -20,3 +20,9 @@ Notes:
 - N-d: useAllCandidates/useAllOpportunities return `truncated`; tested with an endless server (500 pages).
 - N-e: tests for running->404 stop, query 5xx = 3 requests, 4xx = 1, mutation 5xx = 1, shouldRetry table, programmatic double submit (kills the busy-ref mutant).
 - Skipped: N-11 (backend timestamp timezone, belongs to Task 6) and N-12 (jsdom "kaboom" stderr noise, harmless); other minor notes not affecting later tasks.
+
+## Fix note (wave 1 follow-up)
+
+- App.test.tsx: stub-era detail cases replaced. Default MSW handlers (fixtures) are registered; /opportunities/3 and /candidates/3 now await the real headings ("Data Analyst", "Ada Lovelace"); candidate on an admin route sees Forbidden with zero requests; signed-out is redirected; /runs and /runs/:id still assert the stub headings.
+- Flake root cause: the fake-timer `tick` helper slept a fixed 4 ms of real time per 100 ms virtual step, racing the real MSW round-trip, and the retry tests depended on virtual retry backoff within the 5 s default test timeout (hundreds of act/sleep iterations under load). Fix: test QueryClients use retryDelay 0 and retry tests use real timers with waitFor on isError (counts are final then); `tick` now advances 250 ms virtual steps and settles on observable MSW in-flight counts (requests parked on a fake-timer delay in the handler are excluded, since counting them deadlocked settle); file-level testTimeout 60 s. A first version that counted parked requests hung and reproduced the failure 2 of 20 runs; the final version had 0 failures.
+- Results: hooks.test.tsx 20 consecutive runs (loop, vitest has no --repeat): 0 failures; full suite 5 consecutive runs: 277/277 each, 0 failures.

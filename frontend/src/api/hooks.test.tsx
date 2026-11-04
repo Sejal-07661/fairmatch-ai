@@ -19,6 +19,8 @@ import {
   useStartRun,
 } from "./hooks";
 
+vi.setConfig({ testTimeout: 15_000 });
+
 function wrapperFor(client = makeClient()) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
@@ -137,12 +139,38 @@ describe("mutations", () => {
 });
 
 const realSetTimeout = globalThis.setTimeout;
+
+// Count in-flight MSW requests so fake-timer tests advance virtual time only after the
+// real network round-trip has settled (never a wall-clock guess).
+let inflightRequests = 0;
+// requests deliberately parked on a fake-timer delay inside a handler; they only progress when virtual time advances
+let parked = 0;
+beforeEach(() => {
+  inflightRequests = 0;
+  parked = 0;
+  server.events.on("request:start", () => {
+    inflightRequests += 1;
+  });
+  server.events.on("request:end", () => {
+    inflightRequests -= 1;
+  });
+});
+afterEach(() => server.events.removeAllListeners());
+
+async function settle() {
+  let quiet = 0;
+  for (let i = 0; i < 2000 && quiet < 3; i++) {
+    await new Promise((r) => realSetTimeout(r, 0));
+    quiet = inflightRequests - parked <= 0 ? quiet + 1 : 0;
+  }
+}
+
 async function tick(ms: number) {
-  for (let t = 0; t < ms; t += 100) {
+  for (let t = 0; t < ms; t += 250) {
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(250);
     });
-    await new Promise((r) => realSetTimeout(r, 4));
+    await settle();
   }
 }
 
@@ -155,25 +183,102 @@ describe("useRun polling", () => {
       counter.maxInflight = Math.max(counter.maxInflight, counter.inflight);
       const status = statuses[Math.min(counter.n, statuses.length - 1)] ?? "done";
       counter.n += 1;
+      parked += 1;
       await new Promise((r) => setTimeout(r, 2000));
+      parked -= 1;
       counter.inflight -= 1;
       return HttpResponse.json(makeRun({ id: 5, status, metrics: status === "done" ? makeRun().metrics : null, fairness: null }));
     });
   }
 
-  it("test_polls_every_1500ms_until_done_without_overlap", { timeout: 20000 }, async () => {
+  it("test_polls_every_1500ms_until_done_without_overlap", { timeout: 15000 }, async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
     const counter = { n: 0, inflight: 0, maxInflight: 0 };
     server.use(runHandler(["running", "running", "done"], counter));
     const { result } = renderHook(() => useRun(5), { wrapper: wrapperFor() });
     // first request takes 2s (longer than interval); polling must not overlap.
-    await tick(10_000);
+    for (let i = 0; i < 20; i++) {
+      await tick(500);
+      expect(counter.maxInflight).toBeLessThanOrEqual(1); // fail fast on any overlap
+    }
     expect(result.current.data?.status).toBe("done");
     const after = counter.n;
     expect(counter.maxInflight).toBe(1);
     expect(after).toBe(3);
     await tick(10_000);
     expect(counter.n).toBe(after);
+  });
+
+  async function advance(ms: number) {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+    await settle();
+    // react-query batches notifications on a (faked) setTimeout(0): flush it
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+  }
+
+  // Flush faked timers and real I/O until an observable condition holds (no wall-clock guess).
+  async function until(cond: () => boolean) {
+    for (let i = 0; i < 500 && !cond(); i++) {
+      await act(async () => {
+        await new Promise((r) => realSetTimeout(r, 1));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+    }
+    expect(cond()).toBe(true);
+  }
+
+  it("test_poll_interval_is_exactly_1500ms", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+    let n = 0;
+    server.use(
+      http.get("/api/runs/5", () => {
+        n += 1;
+        return HttpResponse.json(makeRun({ id: 5, status: "running", metrics: null, fairness: null }));
+      }),
+    );
+    renderHook(() => useRun(5), { wrapper: wrapperFor() });
+    await advance(0);
+    expect(n).toBe(1);
+    await advance(1499);
+    expect(n).toBe(1);
+    await advance(1);
+    expect(n).toBe(2);
+    await advance(1499);
+    expect(n).toBe(2);
+    await advance(1);
+    expect(n).toBe(3);
+  });
+
+  it("test_pending_run_is_polled_then_stops_at_done", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+    const sequence = ["pending", "running", "done"];
+    let n = 0;
+    server.use(
+      http.get("/api/runs/5", () => {
+        const status = sequence[Math.min(n, sequence.length - 1)] ?? "done";
+        n += 1;
+        return HttpResponse.json(makeRun({ id: 5, status, metrics: null, fairness: null }));
+      }),
+    );
+    const client = makeClient();
+    renderHook(() => useRun(5), { wrapper: wrapperFor(client) });
+    const cached = () => client.getQueryCache().getAll().map((q) => (q.state.data as { status?: string } | undefined)?.status)[0];
+    await until(() => cached() === "pending");
+    expect(n).toBe(1);
+    await advance(1499);
+    expect(n).toBe(1);
+    await advance(1);
+    await until(() => cached() === "running");
+    expect(n).toBe(2);
+    await advance(1500);
+    await until(() => cached() === "done");
+    expect(n).toBe(3);
+    await advance(6000);
+    expect(n).toBe(3);
   });
 
   it("test_exposes_parsed_blobs", async () => {
@@ -278,7 +383,7 @@ describe("cache invalidation and caps", () => {
     await waitFor(() => expect(gets).toBe(2));
   });
 
-  it("test_use_all_sets_truncated_at_500_page_cap", { timeout: 60000 }, async () => {
+  it("test_use_all_sets_truncated_at_500_page_cap", { timeout: 15000 }, async () => {
     let n = 0;
     server.use(
       http.get("/api/candidates", () => {
@@ -305,7 +410,6 @@ describe("retry policy", () => {
   afterEach(() => vi.useRealTimers());
 
   it("test_query_5xx_retried_exactly_twice", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
     let n = 0;
     server.use(
       http.get("/api/candidates", () => {
@@ -313,13 +417,12 @@ describe("retry policy", () => {
         return HttpResponse.json({ detail: "boom" }, { status: 500 });
       }),
     );
-    renderHook(() => useAllCandidates(), { wrapper: wrapperFor() });
-    await tick(20_000);
+    const { result } = renderHook(() => useAllCandidates(), { wrapper: wrapperFor() });
+    await waitFor(() => expect(result.current.isError).toBe(true));
     expect(n).toBe(3);
   });
 
   it("test_query_4xx_never_retried", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
     let n = 0;
     server.use(
       http.get("/api/candidates", () => {
@@ -327,13 +430,12 @@ describe("retry policy", () => {
         return HttpResponse.json({ detail: "no" }, { status: 403 });
       }),
     );
-    renderHook(() => useAllCandidates(), { wrapper: wrapperFor() });
-    await tick(20_000);
+    const { result } = renderHook(() => useAllCandidates(), { wrapper: wrapperFor() });
+    await waitFor(() => expect(result.current.isError).toBe(true));
     expect(n).toBe(1);
   });
 
   it("test_mutation_5xx_not_retried", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
     let n = 0;
     server.use(
       http.post("/api/runs", () => {
@@ -343,11 +445,11 @@ describe("retry policy", () => {
     );
     const { result } = renderHook(() => useStartRun(), { wrapper: wrapperFor() });
     act(() => result.current.mutate({ algorithm: "both" }));
-    await tick(20_000);
+    await waitFor(() => expect(result.current.isError).toBe(true));
     expect(n).toBe(1);
   });
 
-  it("test_polling_stops_when_running_run_then_404", async () => {
+  it("test_polling_stops_when_running_run_then_404", { timeout: 15000 }, async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
     let n = 0;
     server.use(
@@ -360,5 +462,32 @@ describe("retry policy", () => {
     renderHook(() => useRun(5), { wrapper: wrapperFor() });
     await tick(15_000);
     expect(n).toBe(2);
+  });
+});
+
+describe("useAll* cancellation", () => {
+  it("test_unmount_mid_pagination_aborts_in_flight_request", async () => {
+    const offsets: number[] = [];
+    let aborted = false;
+    server.use(
+      http.get("/api/candidates", ({ request }) => {
+        const off = Number(new URL(request.url).searchParams.get("offset"));
+        offsets.push(off);
+        if (off === 0) {
+          return HttpResponse.json(Array.from({ length: 100 }, (_, i) => makeCandidate({ id: i + 1 })));
+        }
+        return new Promise<Response>((resolve) => {
+          request.signal.addEventListener("abort", () => {
+            aborted = true;
+            resolve(HttpResponse.json([]));
+          });
+        });
+      }),
+    );
+    const { unmount } = renderHook(() => useAllCandidates(), { wrapper: wrapperFor() });
+    await waitFor(() => expect(offsets).toEqual([0, 100]));
+    unmount();
+    await waitFor(() => expect(aborted).toBe(true));
+    expect(offsets).toEqual([0, 100]); // no page 3 after unmount
   });
 });

@@ -18,7 +18,7 @@ export function makeToken(claims: Record<string, unknown> = {}): string {
 }
 
 export function makeClient(): QueryClient {
-  return new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
+  return new QueryClient({ defaultOptions: { queries: { retry: false, retryDelay: 0, gcTime: Infinity } } });
 }
 
 export function renderApp(ui: ReactElement, opts: { route?: string; client?: QueryClient } = {}) {

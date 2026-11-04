@@ -4,6 +4,21 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./App";
 import { makeClient, makeToken, renderApp } from "./test/render";
 import { saveToken } from "./auth/token";
+import { http, HttpResponse } from "msw";
+import { server } from "./test/server";
+import { makeCandidate, makeOpportunity } from "./test/fixtures";
+
+beforeEach(() => {
+  server.use(
+    http.get("/api/candidates/me", () => HttpResponse.json(makeCandidate())),
+    http.get("/api/candidates/:id/demographics", () => HttpResponse.json({ candidate_id: 3, group_label: "A" })),
+    http.get("/api/candidates/:id", () => HttpResponse.json(makeCandidate({ id: 3 }))),
+    http.get("/api/candidates", () => HttpResponse.json([makeCandidate({ id: 3 })])),
+    http.get("/api/opportunities/:id/similar-candidates", () => HttpResponse.json([])),
+    http.get("/api/opportunities/:id", () => HttpResponse.json(makeOpportunity({ id: 3 }))),
+    http.get("/api/opportunities", () => HttpResponse.json([makeOpportunity({ id: 3 })])),
+  );
+});
 
 describe("App", () => {
   it("test_app_renders_login_when_signed_out", () => {
@@ -81,13 +96,42 @@ describe("App", () => {
 
   it.each([
     ["/opportunities", "Opportunities"],
-    ["/opportunities/3", "OpportunityDetail"],
     ["/candidates", "Candidates"],
-    ["/candidates/3", "CandidateDetail"],
     ["/runs/3", "RunDetail"],
-  ])("test_admin_route_%s", (route, name) => {
+    ["/runs", "Runs"],
+  ])("test_admin_route_%s", async (route, name) => {
     saveToken(makeToken({ role: "admin" }));
     renderApp(<App />, { route });
-    expect(screen.getByRole("heading", { name })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name })).toBeInTheDocument();
+  });
+
+  it("test_admin_opportunity_detail_loads", async () => {
+    saveToken(makeToken({ role: "admin" }));
+    renderApp(<App />, { route: "/opportunities/3" });
+    expect(await screen.findByRole("heading", { name: "Data Analyst" })).toBeInTheDocument();
+  });
+
+  it("test_admin_candidate_detail_loads", async () => {
+    saveToken(makeToken({ role: "admin" }));
+    renderApp(<App />, { route: "/candidates/3" });
+    expect(await screen.findByRole("heading", { name: "Ada Lovelace" })).toBeInTheDocument();
+  });
+
+  it("test_candidate_forbidden_on_admin_routes_makes_zero_requests", async () => {
+    saveToken(makeToken({ role: "candidate" }));
+    const seen = vi.fn();
+    server.events.on("request:start", seen);
+    try {
+      renderApp(<App />, { route: "/candidates/3" });
+      expect(await screen.findByRole("heading", { name: "Forbidden" })).toBeInTheDocument();
+      expect(seen).not.toHaveBeenCalled();
+    } finally {
+      server.events.removeAllListeners();
+    }
+  });
+
+  it("test_signed_out_detail_route_redirects_with_next", () => {
+    renderApp(<App />, { route: "/candidates/3" });
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
 });
