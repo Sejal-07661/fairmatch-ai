@@ -17,7 +17,7 @@ using semantic similarity + skill matching + seat-constrained allocation.
 | Fairness audit (selection rates, four-fifths rule) | Done | `core/fairness.py` |
 | End-to-end pipeline | Done | `core/pipeline.py` |
 | Backend API (FastAPI, PostgreSQL + pgvector, Celery) | Done | `api/` |
-| Frontend Dashboard (React) | Planned next |
+| Frontend Dashboard (React) | Done | `../frontend/` |
 
 ## How to run the demo
 
@@ -130,6 +130,19 @@ pytest -m "not slow and not llm and not db"
 TEST_DATABASE_URL=postgresql+psycopg://fairmatch:fairmatch@localhost:5432/fairmatch pytest -m db
 ```
 
+## Dashboard
+
+A React dashboard lives in `../frontend/` (see its README).
+
+- Install: `cd ../frontend && npm install`.
+- Develop: start the API (`python -m uvicorn api.main:create_app --factory --port 8000`), then `npm run dev` (http://localhost:5173, proxies `/api` to the API). If port 8000 is used by another program, run the API on another port and start Vite with `VITE_API_TARGET=http://127.0.0.1:<port>`.
+- Scripts: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm run gen:api`, `npm run e2e`.
+- Contract: `openapi.json` is a committed snapshot (`python scripts/export_openapi.py`, `--check` in pytest); the frontend types are generated from it.
+- Roles: candidates see only their profile; admins manage opportunities and candidates, start runs and read results, fairness and explanations.
+- The access token lives in `sessionStorage` only.
+- End-to-end: `npm run e2e` starts this API on port 8765 with a temporary SQLite database prepared by `scripts/e2e_prepare.py`.
+- Known limits: run status is polled; lists are paged 25 at a time (the API caps pages at 100).
+
 ## Next steps
 
-- Build a simple React dashboard so this can be used without editing code
+- Harden for production: CSP and referrer policy at the serving proxy, route-level code splitting, an audit-trail view.

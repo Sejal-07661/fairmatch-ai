@@ -356,6 +356,30 @@ describe("RunDetail tabs", () => {
     expect(screen.getByText("Template explanation (no AI model used)")).toBeInTheDocument();
   });
 
+  it("test_run_detail_never_requests_demographics_or_shows_group_labels", async () => {
+    admin();
+    const demoRequests: string[] = [];
+    server.use(
+      http.get("/api/candidates/:id/demographics", ({ request }) => {
+        demoRequests.push(request.url);
+        return HttpResponse.json({ candidate_id: 1, group_label: "SecretGroup" });
+      }),
+    );
+    const a = makeAllocation({ candidate_id: 1, opportunity_id: 1, reasons: ["Great python"], narrative: "Narr" });
+    serveSide({
+      explanations: [
+        { algorithm: "hungarian", candidate_id: 1, opportunity_id: 1, score: 0.8, reasons: ["Great python"], narrative: "Narr", used_fallback: false },
+      ],
+    });
+    serveRun(doneRun({ allocations: [a] }));
+    open();
+    await userEvent.click(await screen.findByRole("tab", { name: "Explanations" }));
+    await userEvent.click(await screen.findByRole("button", { name: /explain ada/i }));
+    expect(await screen.findByText("Great python")).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("SecretGroup");
+    expect(demoRequests).toEqual([]);
+  });
+
   it.each([
     ["missing unallocated", { hungarian: { total_score: 1, blocking_pairs: 0, runtime_ms: 1 } }],
     ["null", null],

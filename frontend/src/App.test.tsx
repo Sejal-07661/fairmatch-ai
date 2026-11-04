@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -55,9 +56,9 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
 
-  it("test_console_errors_fail_tests", () => {
-    expect(() => console.error("boom")).toThrow(/console.error/);
-    expect(() => console.warn("boom")).toThrow(/console.warn/);
+  it("test_console_calls_are_recorded_for_the_afterEach_assertion", () => {
+    expect(vi.isMockFunction(console.error)).toBe(true);
+    expect(vi.isMockFunction(console.warn)).toBe(true);
   });
 
   it("test_signed_out_admin_route_goes_to_login", () => {

@@ -24,6 +24,8 @@ export interface AuthApi {
   login(email: string, password: string): Promise<void>;
   register(email: string, password: string): Promise<void>;
   logout(): void;
+  /** True after a deliberate sign-out: guards send the user to plain /login (no `next`). */
+  signedOut?: boolean;
 }
 
 const AuthContext = createContext<AuthApi | null>(null);
@@ -45,6 +47,7 @@ function parseToken(json: unknown): string {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(userFromStorage);
+  const [signedOut, setSignedOut] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,11 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearToken();
       bumpSession();
       queryClient.clear();
-      setUser(null);
       const here = locationRef.current;
-      if (here.pathname === "/login") return;
-      const next = here.pathname + here.search;
-      navigate(rememberPath ? `/login?next=${encodeURIComponent(next)}` : "/login", { replace: true });
+      if (here.pathname !== "/login") {
+        const next = here.pathname + here.search;
+        void navigate(rememberPath ? `/login?next=${encodeURIComponent(next)}` : "/login", { replace: true });
+      }
+      setSignedOut(!rememberPath);
+      setUser(null);
     },
     [navigate, queryClient],
   );
@@ -103,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       saveToken(token);
       bumpSession();
       queryClient.clear(); // a different user must never see the previous user's cache
+      setSignedOut(false);
       setUser(claims);
     },
     [queryClient],
@@ -118,7 +124,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => endSession(false), [endSession]);
 
-  const value = useMemo(() => ({ user, login, register, logout }), [user, login, register, logout]);
+  const value = useMemo(
+    () => ({ user, login, register, logout, signedOut }),
+    [user, login, register, logout, signedOut],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

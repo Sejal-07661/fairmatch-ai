@@ -9,7 +9,24 @@ npm install
 npm run dev        # http://localhost:5173, proxies /api -> http://127.0.0.1:8000 (prefix stripped)
 ```
 
-Scripts: `dev`, `build`, `preview`, `test` (vitest), `lint`, `typecheck`, `gen:api`, `e2e` (Playwright; run `npx playwright install` first).
+Run the backend from `fairmatch/` (see its README). The dev proxy target defaults to `http://127.0.0.1:8000`; if that port is taken by another program, start the API elsewhere and point the proxy at it:
+
+```bash
+# fairmatch/
+python -m uvicorn api.main:create_app --factory --port 8765
+# frontend/
+VITE_API_TARGET=http://127.0.0.1:8765 npm run dev
+```
+
+PowerShell:
+
+```powershell
+$env:VITE_API_TARGET = "http://127.0.0.1:8765"; npm run dev
+```
+
+## Scripts
+
+`dev`, `build`, `preview`, `test` (vitest), `lint`, `typecheck`, `gen:api`, `e2e` (Playwright against the real backend, see `e2e/README.md`).
 
 ## API contract snapshot workflow
 
@@ -22,3 +39,19 @@ python scripts/export_openapi.py --check  # verify it is current (also a pytest)
 # then (from frontend/)
 npm run gen:api
 ```
+
+## Roles
+
+- Candidate: `/profile` only (upload a resume as text or a .pdf/.docx/.txt file, see extracted skills). Candidates never fetch or see demographics or fairness data.
+- Admin: opportunities, candidates (with demographic group labels), runs, results, comparison, fairness and explanations.
+- A candidate opening an admin URL sees a Forbidden page and no admin request is made. The server stays authoritative.
+
+## Token storage
+
+The access token is kept in `sessionStorage` only (cleared when the tab closes, never in `localStorage` or URLs). Role and expiry are read from the token for routing only. An expired token or a 401 clears the session and redirects to `/login?next=<path>`.
+
+## Known limits
+
+- A run that never leaves pending/running keeps being polled (with a waiting timer and a manual refresh); there is no server-side timeout.
+- Run status is polled every 1.5 s; there is no push channel.
+- Lists are paged 25 at a time; the e2e suite uses the Vite dev server, not a production build.

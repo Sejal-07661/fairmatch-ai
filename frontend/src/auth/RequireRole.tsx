@@ -9,9 +9,10 @@ export function RequireRole({
   role: "admin" | "candidate" | "any";
   children: ReactNode;
 }) {
-  const { user } = useAuth();
+  const { user, signedOut } = useAuth();
   const location = useLocation();
   if (user === null) {
+    if (signedOut) return <Navigate to="/login" replace />;
     const next = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`/login?next=${next}`} replace />;
   }
