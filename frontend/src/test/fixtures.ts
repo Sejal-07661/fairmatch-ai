@@ -1,37 +1,14 @@
-import type { components } from "../api/schema";
+import type {
+  Allocation,
+  AlgorithmFairness,
+  Candidate,
+  Fairness,
+  Metrics,
+  Opportunity,
+  Run,
+} from "../api/types";
 
-type Schemas = components["schemas"];
-export type Run = Schemas["RunOut"];
-export type Allocation = Schemas["AllocationOut"];
-export type Candidate = Schemas["CandidateOut"];
-export type Opportunity = Schemas["OpportunityOut"];
-
-export interface AlgorithmMetrics {
-  total_score: number;
-  blocking_pairs: number;
-  runtime_ms: number;
-  unallocated: number[];
-}
-export type Metrics = {
-  fairness_skipped?: string;
-  hungarian?: AlgorithmMetrics;
-  gale_shapley?: AlgorithmMetrics;
-};
-
-export interface FairnessGroup {
-  group: string;
-  size: number;
-  selected: number;
-  selection_rate: number;
-  mean_score: number;
-}
-export interface AlgorithmFairness {
-  groups: FairnessGroup[];
-  disparate_impact_ratio: number;
-  passes_four_fifths: boolean;
-  parity_difference: number;
-}
-export type Fairness = { hungarian?: AlgorithmFairness; gale_shapley?: AlgorithmFairness };
+export type { Allocation, Candidate, Fairness, Metrics, Opportunity, Run };
 
 export function makeMetrics(overrides: Partial<Metrics> = {}): Metrics {
   return {
