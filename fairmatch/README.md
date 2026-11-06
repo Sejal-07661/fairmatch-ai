@@ -1,4 +1,6 @@
-# FairMatch AI — Working Prototype (Progress Milestone)
+# FairMatch AI backend (core pipeline and API)
+
+Part of FairMatch AI; start at the [root README](../README.md) (Docker quick start, architecture, deployment, fairness docs). This file covers running and testing the backend on its own.
 
 An AI-powered system that matches candidates to internships/jobs fairly,
 using semantic similarity + skill matching + seat-constrained allocation.
@@ -56,11 +58,11 @@ docker compose -f docker-compose.dev.yml up -d      # PostgreSQL + pgvector, Red
 export JWT_SECRET=<long random string>
 export DATABASE_URL=postgresql+psycopg://fairmatch:fairmatch@localhost:5432/fairmatch
 export REDIS_URL=redis://localhost:6379/0
-alembic upgrade head
+python -m alembic upgrade head
 python -m api.cli create-admin EMAIL PASSWORD
 uvicorn api.main:create_app --factory
-celery -A api.worker.celery_app worker               # separate terminal
-celery -A api.worker.celery_app worker --pool=solo   # on Windows
+python -m celery -A api.worker:celery_app worker               # separate terminal
+python -m celery -A api.worker:celery_app worker --pool=solo   # on Windows
 ```
 
 Windows PowerShell form of the environment setup:
@@ -86,6 +88,8 @@ back to a local SQLite file, not the PostgreSQL container.
 | `CELERY_EAGER` | Default `false`. `true` runs tasks inline in the API process, so no worker or broker is needed (tests, quick local dev) |
 | `OPENAI_API_KEY` | Optional; enables LLM parsing and narratives |
 | `OPENAI_MODEL` | Optional; default `gpt-4o-mini` |
+| `RUN_TIMEOUT_MINUTES` | A `running` run older than this is reclaimed. Default 30 |
+| `PENDING_GRACE_MINUTES` | A `pending` run older than this is re-enqueued. Default 5 |
 
 ### Endpoints
 
@@ -118,9 +122,10 @@ without an embedding are omitted / give an empty list.
 
 ### Known limits
 
-- Resume uploads are limited to 5 MiB; run a reverse proxy with a body-size limit in production.
+- Resume uploads are limited to 5 MiB by the API, which only checks after the multipart body is received; the Docker stack's nginx rejects bodies over 6 MiB earlier. Run a reverse proxy with a body-size limit in any other deployment.
+- Runs left `running` by a killed worker, and runs never enqueued, are reclaimed when a worker starts (`RUN_TIMEOUT_MINUTES` default 30, `PENDING_GRACE_MINUTES` default 5).
 - Opportunity capacity is at most 10000; a run requires candidates x seats <= 25,000,000.
-- The PostgreSQL path is verified offline only unless the `TEST_DATABASE_URL` tests were run.
+- The PostgreSQL path is verified offline locally; the `TEST_DATABASE_URL` tests (`pytest -m db`) run in CI.
 
 ### Tests
 
@@ -140,8 +145,9 @@ A React dashboard lives in `../frontend/` (see its README).
 - Roles: candidates see only their profile; admins manage opportunities and candidates, start runs and read results, fairness and explanations.
 - The access token lives in `sessionStorage` only.
 - End-to-end: `npm run e2e` starts this API on port 8765 with a temporary SQLite database prepared by `scripts/e2e_prepare.py`.
-- Known limits: run status is polled; lists are paged 25 at a time (the API caps pages at 100).
+- Known limits: run status is polled every 1.5 s; tables show 25 rows per page client-side (the app fetches lists in API pages of 100).
 
 ## Next steps
 
-- Harden for production: CSP and referrer policy at the serving proxy, route-level code splitting, an audit-trail view.
+- An audit-trail view (who requested a run, scoring weights); this needs an API change.
+- Deployment (Docker Compose, nginx with CSP, CI) is described in [../docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).

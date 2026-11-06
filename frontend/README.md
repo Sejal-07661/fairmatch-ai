@@ -1,6 +1,6 @@
 # FairMatch AI dashboard
 
-Vite + React + TypeScript SPA for the FairMatch API.
+Vite + React + TypeScript SPA for the FairMatch API. Part of FairMatch AI: see the [root README](../README.md) for the Docker quick start and [../docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md) for the production web image (nginx).
 
 ## Install and run
 
@@ -26,7 +26,7 @@ $env:VITE_API_TARGET = "http://127.0.0.1:8765"; npm run dev
 
 ## Scripts
 
-`dev`, `build`, `preview`, `test` (vitest), `lint`, `typecheck`, `gen:api`, `e2e` (Playwright against the real backend, see `e2e/README.md`).
+`dev`, `build`, `preview`, `test` (vitest), `lint`, `typecheck`, `gen:api`, `test:deploy` (checks `deploy/nginx.conf`), `e2e` (Playwright against the real backend, see `e2e/README.md`).
 
 ## API contract snapshot workflow
 
@@ -52,6 +52,7 @@ The access token is kept in `sessionStorage` only (cleared when the tab closes, 
 
 ## Known limits
 
-- A run that never leaves pending/running keeps being polled (with a waiting timer and a manual refresh); there is no server-side timeout.
+- A run that stays pending/running keeps being polled (with a waiting timer and a manual refresh). The server reclaims stuck runs only when a worker (re)starts, so the UI can still show the waiting note until then.
 - Run status is polled every 1.5 s; there is no push channel.
-- Lists are paged 25 at a time; the e2e suite uses the Vite dev server, not a production build.
+- Lists are fetched in API pages of 100 and shown 25 rows per page; the e2e suite uses the Vite dev server, not the production build.
+- Admin pages are lazy-loaded; the production build is served by nginx (`deploy/nginx.conf`, `Dockerfile`).
