@@ -53,13 +53,13 @@ On PostgreSQL the `embedding` columns are pgvector `vector` columns with HNSW co
 
 ### Reclaiming stuck runs
 
-When a worker starts (`worker_ready` signal in `api/worker.py`), `reclaim_stuck_runs` runs once:
+`reclaim_stuck_runs` runs when a worker starts (`worker_ready` signal in `api/worker.py`) and then every 5 minutes through the Celery task `api.reclaim_stuck` (`beat_schedule`; the compose worker runs with `-B`):
 
 - `running` runs whose `started_at` is older than `RUN_TIMEOUT_MINUTES` (default 30), or missing, are reset to `pending`;
 - `pending` runs older than `PENDING_GRACE_MINUTES` (default 5) are treated as never enqueued;
 - all of those ids are re-enqueued. A fresh `running` run is left alone, and `execute_run` only takes over a `running` row whose `started_at` has expired, so a live run is not executed twice.
 
-Reclaiming happens at worker start, not on a timer. A worker killed mid-run is recovered the next time any worker starts (for example when Docker restarts it under `restart: unless-stopped`).
+A killed worker (or a dead prefork child) is therefore recovered within `RUN_TIMEOUT_MINUTES` plus at most 5 minutes, without waiting for a restart. Running runs are reset with a single guarded `UPDATE ... WHERE status='running' AND (started_at IS NULL OR started_at < cutoff)`, so a run claimed concurrently by another worker is never overwritten. Run in more than one worker container only with the understanding that each runs its own beat; the sweep is idempotent, so this is harmless.
 
 ## Auth and roles
 

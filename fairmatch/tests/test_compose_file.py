@@ -98,5 +98,32 @@ def test_env_example_has_every_required_key_and_no_real_secret():
     assert keys["WEB_PORT"] == "8080"
     assert keys["ACCESS_TOKEN_MINUTES"] == "60"
     assert keys["OPENAI_API_KEY"] == ""
+    # No usable secret may ship: empty values make compose's `:?` guard refuse to start.
     for k in ("JWT_SECRET", "POSTGRES_PASSWORD"):
-        assert keys[k].startswith("change-me"), k
+        assert keys[k].strip() == "", k
+
+
+def test_env_example_documents_url_safe_password_and_generator():
+    assert "URL-safe" in ENV_EXAMPLE
+    assert "secrets.token_urlsafe" in ENV_EXAMPLE
+
+
+def test_postgres_healthcheck_probes_tcp():
+    test = SERVICES["postgres"]["healthcheck"]["test"]
+    cmd = test[-1] if isinstance(test, list) else test
+    assert "pg_isready" in cmd and "-h 127.0.0.1" in cmd
+    assert "-U fairmatch" in cmd and "-d fairmatch" in cmd
+
+
+def test_worker_and_migrate_do_not_inherit_http_healthcheck():
+    for name in ("worker", "migrate"):
+        assert SERVICES[name]["healthcheck"] == {"disable": True}, name
+
+
+def test_worker_runs_beat_for_periodic_reclaim():
+    assert "-B" in SERVICES["worker"]["command"]
+
+
+def test_backend_services_share_one_image():
+    images = {SERVICES[n].get("image") for n in ("migrate", "api", "worker")}
+    assert len(images) == 1 and None not in images

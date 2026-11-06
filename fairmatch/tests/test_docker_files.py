@@ -47,4 +47,10 @@ def test_entrypoint_is_exec_form():
     text = _read("docker/entrypoint.sh")
     assert 'exec "$@"' in text
     assert "set -eu" in text
-    assert "JWT_SECRET" in text
+    assert 'if [ -z "${JWT_SECRET:-}" ]; then' in text
+    assert "exit 1" in text
+
+
+def test_dockerignore_patterns_match_nested_dirs():
+    lines = {ln.strip() for ln in _read(".dockerignore").splitlines()}
+    assert {"**/__pycache__", "**/*.pyc"} <= lines

@@ -68,10 +68,14 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
       - run: npm run test:deploy
 
   e2e:
     runs-on: ubuntu-latest
+    env:
+      # Same cache dir for the prefetch step and the offline (HF_HUB_OFFLINE=1) backend.
+      HF_HOME: ${{ github.workspace }}/.hf-cache
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -82,6 +86,13 @@ jobs:
             fairmatch/requirements.txt
             fairmatch/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
+        working-directory: fairmatch
+      - uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.hf-cache
+          key: hf-bge-small-en-v1.5
+      - name: Prefetch embedding model
+        run: python scripts/prefetch_model.py
         working-directory: fairmatch
       - uses: actions/setup-node@v4
         with:

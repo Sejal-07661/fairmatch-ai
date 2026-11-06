@@ -1,12 +1,12 @@
 .env
 .env.*
-*.db
-*.sqlite
-*.sqlite3
+**/*.db
+**/*.sqlite
+**/*.sqlite3
 .venv
 venv
-__pycache__
-*.pyc
+**/__pycache__
+**/*.pyc
 .pytest_cache
 .ruff_cache
 .git

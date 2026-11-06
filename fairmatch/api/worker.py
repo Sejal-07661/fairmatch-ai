@@ -11,6 +11,9 @@ celery_app.conf.update(
     result_serializer="json",
     accept_content=["json"],
     task_eager_propagates=True,
+    beat_schedule={
+        "reclaim-stuck-runs": {"task": "api.reclaim_stuck", "schedule": 300.0},
+    },
 )
 
 
@@ -86,9 +89,8 @@ def run_allocation(run_id: int) -> None:
         session.close()
 
 
-@worker_ready.connect
-def _reclaim_on_worker_ready(*args, **kwargs):
-    """Re-enqueue stuck or never-enqueued runs when a worker starts. Never raises."""
+def _reclaim_and_enqueue() -> None:
+    """Re-enqueue stuck or never-enqueued runs. Never raises."""
     import logging
 
     log = logging.getLogger(__name__)
@@ -107,3 +109,15 @@ def _reclaim_on_worker_ready(*args, **kwargs):
             log.info("reclaimed runs: %s", ids)
     except Exception:
         log.exception("reclaiming stuck runs failed")
+
+
+@celery_app.task(name="api.reclaim_stuck")
+def reclaim_stuck() -> None:
+    """Periodic sweep (celery beat, every 5 minutes)."""
+    _reclaim_and_enqueue()
+
+
+@worker_ready.connect
+def _reclaim_on_worker_ready(*args, **kwargs):
+    """Also sweep once when a worker starts."""
+    _reclaim_and_enqueue()

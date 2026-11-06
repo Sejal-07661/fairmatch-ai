@@ -36,7 +36,7 @@ docker compose up --build
 
 PowerShell: `Copy-Item .env.example .env`, the rest is identical.
 
-Without a real `JWT_SECRET` and `POSTGRES_PASSWORD` in `.env`, compose stops with `set JWT_SECRET in .env` (or `POSTGRES_PASSWORD`). Create the first admin (in another terminal, once the stack is up):
+`.env.example` ships both values empty. Set `JWT_SECRET` and a URL-safe `POSTGRES_PASSWORD` (only `A-Za-z0-9_-`; `secrets.token_urlsafe` output qualifies) in `.env`. Without them, compose stops with `set JWT_SECRET in .env` (or `POSTGRES_PASSWORD`). Create the first admin (in another terminal, once the stack is up):
 
 ```bash
 docker compose run --rm api python -m api.cli create-admin admin@example.com 'a-strong-password'

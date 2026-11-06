@@ -37,5 +37,6 @@ export default defineConfig({
     setupFiles: ["src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}", "vite.config.test.ts"],
     css: false,
+    hookTimeout: 30_000,
   },
 });

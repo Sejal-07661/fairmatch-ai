@@ -23,8 +23,8 @@ Set these in `.env` (copy `.env.example`). `.env` is git-ignored.
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `JWT_SECRET` | yes | none | Signs access tokens. Compose refuses to start without it; the backend entrypoint also exits if it is empty |
-| `POSTGRES_PASSWORD` | yes | none | Password of the `fairmatch` database user; compose refuses to start without it |
+| `JWT_SECRET` | yes | none | Signs access tokens. `.env.example` ships it empty on purpose: compose refuses to start until you set it, and the backend entrypoint also exits if it is empty |
+| `POSTGRES_PASSWORD` | yes | none | Password of the `fairmatch` database user; compose refuses to start without it. Must be URL-safe (`A-Za-z0-9_-`, e.g. from `secrets.token_urlsafe`) because it is embedded in `DATABASE_URL` |
 | `OPENAI_API_KEY` | no | empty | Enables LLM parsing and narratives; empty means regex/spaCy parsing and deterministic explanations |
 | `WEB_PORT` | no | `8080` | Host port of the web tier |
 | `ACCESS_TOKEN_MINUTES` | no | `60` | Access token lifetime |
@@ -82,7 +82,7 @@ On push and pull request to `main` or `master`: `backend` (ruff, pytest without 
 - The Docker path is verified by static tests and the CI image build only.
 - Education detection on the no-API-key path uses regular expressions with edge cases (unusual spellings of degrees can be missed or misread).
 - Without the nginx proxy (for example `uvicorn` exposed directly), the multipart parser receives and spools an oversized upload to disk before the API's 5 MiB check rejects it. The compose stack avoids this through nginx's body limit.
-- Stuck runs are reclaimed only when a worker starts, not continuously.
+- Stuck runs are reclaimed at worker start and by a sweep every 5 minutes (embedded celery beat, `-B`), but there is no liveness heartbeat: a legitimate run longer than `RUN_TIMEOUT_MINUTES` (default 30) can be taken over and executed twice (on PostgreSQL the loser can fail on the unique allocation constraint). Raise `RUN_TIMEOUT_MINUTES` for very large runs.
 - Run status is polled (1.5 s); there is no push channel.
 - A run is limited to `candidates x total seats <= 25,000,000`, and an opportunity's capacity to 10000.
 - Fairness is measured on a single group label per candidate and only describes selection rates (see [FAIRNESS.md](FAIRNESS.md)).

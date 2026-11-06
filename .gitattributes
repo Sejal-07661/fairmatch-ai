@@ -1,2 +1,6 @@
 fairmatch/openapi.json text eol=lf
 frontend/src/api/schema.d.ts text eol=lf
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.conf text eol=lf
+*.yml text eol=lf

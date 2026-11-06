@@ -1,10 +1,10 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, update
 
 from api.config import get_settings
 from api.models import AllocationRun, Candidate, Opportunity, User
@@ -56,10 +56,76 @@ def test_running_older_than_timeout_is_reclaimed(session):
     assert (r.status, r.started_at, r.error) == ("pending", None, None)
 
 
-def test_aware_now_and_aware_started_at_compare_safely(session):
+def test_aware_now_and_naive_started_at_compare_safely(session):
     rid = _run(session, "running", started=NOW - timedelta(minutes=31))
     aware_now = NOW.replace(tzinfo=UTC)
     assert runs_service.reclaim_stuck_runs(session, now=aware_now) == [rid]
+
+
+def test_aware_utc_started_at_compares_safely(session):
+    # An aware UTC started_at is stored as its UTC wall clock; reading it back is naive.
+    old = (NOW - timedelta(minutes=31)).replace(tzinfo=UTC)
+    fresh = (NOW - timedelta(minutes=5)).replace(tzinfo=UTC)
+    rid = _run(session, "running", started=old)
+    keep = _run(session, "running", started=fresh)
+    assert runs_service.reclaim_stuck_runs(session, now=NOW.replace(tzinfo=UTC)) == [rid]
+    assert _get(session, keep).status == "running"
+
+
+def test_aware_non_utc_now_is_converted(session):
+    ist = timezone(timedelta(hours=5, minutes=30))
+    rid = _run(session, "running", started=NOW - timedelta(minutes=31))
+    fresh = _run(session, "running", started=NOW - timedelta(minutes=5))
+    assert runs_service.reclaim_stuck_runs(session, now=NOW.replace(tzinfo=UTC).astimezone(ist)) == [rid]
+    assert _get(session, fresh).status == "running"
+
+
+def test_reclaim_does_not_overwrite_a_concurrent_fresh_claim(session, monkeypatch):
+    """A run re-claimed between reclaim's read and its write must stay running."""
+    rid = _run(session, "running", started=NOW - timedelta(minutes=31))
+    real_execute = session.execute
+    fired = []
+
+    def racing_execute(stmt, *a, **k):
+        if not fired and "UPDATE" in str(stmt).upper():
+            fired.append(1)
+            real_execute(
+                update(AllocationRun).where(AllocationRun.id == rid).values(started_at=NOW)
+            )
+        return real_execute(stmt, *a, **k)
+
+    monkeypatch.setattr(session, "execute", racing_execute)
+    assert runs_service.reclaim_stuck_runs(session, now=NOW) == []
+    r = _get(session, rid)
+    assert r.status == "running" and r.started_at == NOW
+
+
+def test_periodic_reclaim_task_is_scheduled_every_five_minutes():
+    from api.worker import celery_app
+
+    entry = next(e for e in celery_app.conf.beat_schedule.values() if e["task"] == "api.reclaim_stuck")
+    assert entry["schedule"] == 300.0
+    assert "api.reclaim_stuck" in celery_app.tasks
+
+
+def test_periodic_reclaim_task_enqueues_reclaimed(session, monkeypatch):
+    from api.worker import reclaim_stuck
+
+    rid = _run(session, "pending", created=datetime.now(UTC) - timedelta(minutes=10))
+    sent = []
+    monkeypatch.setattr("api.worker.run_allocation.delay", lambda i: sent.append(i))
+    reclaim_stuck()
+    assert sent == [rid]
+
+
+def test_periodic_reclaim_task_swallows_errors(monkeypatch):
+    from api.worker import reclaim_stuck
+
+    def boom(*a, **k):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr("api.services.runs.reclaim_stuck_runs", boom)
+    reclaim_stuck()  # must not raise
 
 
 def test_fresh_running_run_is_left_alone(session):

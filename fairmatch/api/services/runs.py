@@ -68,19 +68,31 @@ def reclaim_stuck_runs(session: Session, now: datetime | None = None) -> list[in
     stale_running = now_n - timedelta(minutes=s.run_timeout_minutes)
     stale_pending = now_n - timedelta(minutes=s.pending_grace_minutes)
     ids: list[int] = []
-    for run in session.scalars(
-        select(AllocationRun).where(AllocationRun.status.in_(("running", "pending")))
-        .order_by(AllocationRun.id)
-    ):
-        if run.status == "running":
-            # started_at missing on a running row (legacy) counts as expired
-            if run.started_at is None or _naive_utc(run.started_at) < stale_running:
-                run.status = "pending"
-                run.started_at = None
-                run.error = None
-                ids.append(run.id)
-        elif _naive_utc(run.created_at) < stale_pending:
-            ids.append(run.id)
+    candidates = [
+        (r.id, r.status, r.created_at)
+        for r in session.scalars(
+            select(AllocationRun).where(AllocationRun.status.in_(("running", "pending")))
+            .order_by(AllocationRun.id)
+        )
+    ]
+    for run_id, status, created_at in candidates:
+        if status == "running":
+            # Guarded UPDATE: a run claimed concurrently (fresh started_at) is not touched.
+            # started_at missing on a running row (legacy) counts as expired.
+            res = session.execute(
+                update(AllocationRun)
+                .where(
+                    AllocationRun.id == run_id,
+                    AllocationRun.status == "running",
+                    or_(AllocationRun.started_at.is_(None),
+                        AllocationRun.started_at < stale_running),
+                )
+                .values(status="pending", started_at=None, error=None)
+            )
+            if res.rowcount == 1:
+                ids.append(run_id)
+        elif _naive_utc(created_at) < stale_pending:
+            ids.append(run_id)
     session.commit()
     return ids
 

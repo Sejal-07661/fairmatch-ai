@@ -86,3 +86,22 @@ def test_playwright_config_has_no_hardcoded_browser_path():
     text = PLAYWRIGHT.read_text(encoding="utf-8")
     assert "chromium-" not in text
     assert "E2E_CHROMIUM_PATH" in text
+
+
+def test_frontend_installs_browser_before_test_deploy(wf):
+    runs = [s.get("run", "") for s in wf["jobs"]["frontend"]["steps"]]
+    install = next(i for i, r in enumerate(runs) if "playwright install" in r and "chromium" in r)
+    deploy = next(i for i, r in enumerate(runs) if "npm run test:deploy" in r)
+    assert install < deploy
+
+
+def test_e2e_prefetches_model_into_the_cache_the_backend_reads(wf):
+    job = wf["jobs"]["e2e"]
+    steps = job["steps"]
+    hf = job["env"]["HF_HOME"]
+    cache = next(s for s in steps if str(s.get("uses", "")).startswith("actions/cache@"))
+    assert cache["with"]["path"] == hf
+    runs = [s.get("run", "") for s in steps]
+    prefetch = next(i for i, r in enumerate(runs) if "prefetch_model.py" in r)
+    e2e = next(i for i, r in enumerate(runs) if "npm run e2e" in r)
+    assert prefetch < e2e
