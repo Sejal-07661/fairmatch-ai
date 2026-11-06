@@ -1,3 +1,5 @@
+# Dev-only helper (Postgres + Redis with published ports and a throwaway password).
+# The real deployable stack is the root docker-compose.yml (see ../docker-compose.yml).
 services:
   postgres:
     image: pgvector/pgvector:pg16

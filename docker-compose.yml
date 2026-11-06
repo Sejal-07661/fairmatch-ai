@@ -1,0 +1,79 @@
+# FairMatch AI stack. Copy .env.example to .env and set JWT_SECRET and POSTGRES_PASSWORD first.
+# Only `web` publishes a port; api, postgres and redis are reachable on the internal network only.
+x-backend-env: &backend-env
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+  DATABASE_URL: postgresql+psycopg://fairmatch:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/fairmatch
+  REDIS_URL: redis://redis:6379/0
+  ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-60}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fairmatch
+      POSTGRES_USER: fairmatch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fairmatch -d fairmatch"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build: ./fairmatch
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: ./fairmatch
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./fairmatch
+    command: ["celery", "-A", "api.worker:celery_app", "worker", "--loglevel=INFO", "--concurrency=2"]
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
