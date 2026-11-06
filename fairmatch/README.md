@@ -120,7 +120,6 @@ without an embedding are omitted / give an empty list.
 
 - Resume uploads are limited to 5 MiB; run a reverse proxy with a body-size limit in production.
 - Opportunity capacity is at most 10000; a run requires candidates x seats <= 25,000,000.
-- A run killed mid-way stays `running`, and a run that was never enqueued stays `pending`; there is no reclaim yet.
 - The PostgreSQL path is verified offline only unless the `TEST_DATABASE_URL` tests were run.
 
 ### Tests

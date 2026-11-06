@@ -9,20 +9,13 @@ export const FRONTEND_PORT = 5173;
 export const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`;
 export const FRONTEND_URL = `http://127.0.0.1:${FRONTEND_PORT}`;
 
-// Local default Chromium (documented in e2e/README.md). Override with E2E_CHROMIUM_PATH.
-const LOCAL_DEFAULT_CHROMIUM = path.join(
-  process.env.LOCALAPPDATA ?? "",
-  "ms-playwright",
-  "chromium-1248",
-  "chrome-win64",
-  "chrome.exe",
-);
-if (process.env.E2E_CHROMIUM_PATH && !existsSync(process.env.E2E_CHROMIUM_PATH)) {
-  throw new Error(`E2E_CHROMIUM_PATH is set but the file does not exist: ${process.env.E2E_CHROMIUM_PATH}`);
+// E2E_CHROMIUM_PATH selects a Chromium executable (see e2e/README.md). When unset, Playwright's
+// own bundled browser is used (CI and fresh clones: `npx playwright install chromium`).
+const chromiumPath = process.env.E2E_CHROMIUM_PATH;
+if (chromiumPath && !existsSync(chromiumPath)) {
+  throw new Error(`E2E_CHROMIUM_PATH is set but the file does not exist: ${chromiumPath}`);
 }
-const chromiumPath = process.env.E2E_CHROMIUM_PATH ?? LOCAL_DEFAULT_CHROMIUM;
-// Unset variable and missing local default: fall back to Playwright's own browser (fails explicitly if absent).
-const executablePath = existsSync(chromiumPath) ? chromiumPath : undefined;
+const executablePath = chromiumPath || undefined;
 
 // One temp dir per run, shared with workers and global setup/teardown through the environment.
 if (!process.env.FAIRMATCH_E2E_INTERNAL_DIR) {

@@ -25,6 +25,7 @@ function serveSide(over: { explanations?: object } = {}) {
 function serveRun(run: object) {
   server.use(http.get("/api/runs/5", () => HttpResponse.json(run)));
 }
+beforeAll(() => import("./RunDetail"));
 const open = (route = "/runs/5") => renderApp(<App />, { route });
 const doneRun = (o: Partial<Run> = {}) =>
   makeRun({
@@ -65,6 +66,7 @@ describe("RunDetail polling (fake timers)", () => {
       }),
     );
     open();
+    await advance(10);
     await advance(10);
     expect(n).toBe(1);
     expect(screen.getByTestId("run-status-badge")).toHaveTextContent("Pending");

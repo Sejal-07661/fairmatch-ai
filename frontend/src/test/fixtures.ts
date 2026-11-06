@@ -62,6 +62,7 @@ export function makeRun(overrides: Partial<Run> = {}): Run {
     metrics: makeMetrics(),
     fairness: makeFairness(),
     created_at: "2026-11-04T10:00:00Z",
+    started_at: "2026-11-04T10:00:01Z",
     finished_at: "2026-11-04T10:00:05Z",
     allocations: [makeAllocation()],
     ...overrides,

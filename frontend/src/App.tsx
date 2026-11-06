@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { homeFor } from "./auth/redirect";
@@ -10,12 +10,13 @@ import Candidates from "./pages/Candidates";
 import Forbidden from "./pages/Forbidden";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
-import OpportunityDetail from "./pages/OpportunityDetail";
-import Opportunities from "./pages/Opportunities";
 import Profile from "./pages/Profile";
 import Register from "./pages/Register";
-import RunDetail from "./pages/RunDetail";
-import Runs from "./pages/Runs";
+
+const Opportunities = lazy(() => import("./pages/Opportunities"));
+const OpportunityDetail = lazy(() => import("./pages/OpportunityDetail"));
+const Runs = lazy(() => import("./pages/Runs"));
+const RunDetail = lazy(() => import("./pages/RunDetail"));
 
 function Home() {
   const { user } = useAuth();
@@ -28,6 +29,7 @@ export function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
+      <Suspense fallback={<p role="status">Loading&hellip;</p>}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -44,6 +46,7 @@ export function App() {
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
+      </Suspense>
       </AuthProvider>
     </ErrorBoundary>
   );

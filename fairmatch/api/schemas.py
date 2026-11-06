@@ -178,6 +178,7 @@ class RunSummaryOut(BaseModel):
     metrics: dict | None
     fairness: dict | None
     created_at: datetime
+    started_at: datetime | None
     finished_at: datetime | None
 
 

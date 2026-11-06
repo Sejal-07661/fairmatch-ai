@@ -14,6 +14,8 @@ const summary = (o: Record<string, unknown>) => {
   return rest;
 };
 
+beforeAll(() => Promise.all([import("./Runs"), import("./RunDetail")]));
+
 describe("Runs page", () => {
   it("test_lists_runs_newest_first_with_labels_and_badges", async () => {
     admin();

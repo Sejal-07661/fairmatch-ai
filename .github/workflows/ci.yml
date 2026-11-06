@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fairmatch
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: fairmatch
+          POSTGRES_PASSWORD: fairmatch-ci
+          POSTGRES_DB: fairmatch_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fairmatch -d fairmatch_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            fairmatch/requirements.txt
+            fairmatch/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: pytest -m "not slow and not llm and not db" -q
+      - run: python scripts/export_openapi.py --check
+      - name: PostgreSQL tests
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://fairmatch:fairmatch-ci@localhost:5432/fairmatch_test
+        run: pytest -m db -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:deploy
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            fairmatch/requirements.txt
+            fairmatch/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+        working-directory: fairmatch
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          if-no-files-found: ignore
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate a dummy .env
+        run: |
+          {
+            echo "JWT_SECRET=ci-dummy-jwt-secret-not-for-production"
+            echo "POSTGRES_PASSWORD=ci-dummy-postgres-password"
+            echo "OPENAI_API_KEY="
+            echo "WEB_PORT=8080"
+            echo "ACCESS_TOKEN_MINUTES=60"
+          } > .env
+      - run: docker compose build
+      - run: docker compose config -q

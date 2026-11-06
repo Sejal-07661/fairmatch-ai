@@ -1,5 +1,5 @@
 from celery import Celery
-from celery.signals import celeryd_init
+from celery.signals import celeryd_init, worker_ready
 
 from api.config import get_settings
 
@@ -84,3 +84,26 @@ def run_allocation(run_id: int) -> None:
         logging.getLogger(__name__).exception("run_allocation %s crashed", run_id)
     finally:
         session.close()
+
+
+@worker_ready.connect
+def _reclaim_on_worker_ready(*args, **kwargs):
+    """Re-enqueue stuck or never-enqueued runs when a worker starts. Never raises."""
+    import logging
+
+    log = logging.getLogger(__name__)
+    try:
+        from api.db import SessionLocal
+        from api.services.runs import reclaim_stuck_runs
+
+        session = SessionLocal()
+        try:
+            ids = reclaim_stuck_runs(session)
+        finally:
+            session.close()
+        for run_id in ids:
+            run_allocation.delay(run_id)
+        if ids:
+            log.info("reclaimed runs: %s", ids)
+    except Exception:
+        log.exception("reclaiming stuck runs failed")

@@ -413,6 +413,8 @@ export interface components {
             metrics: {
                 [key: string]: unknown;
             } | null;
+            /** Started At */
+            started_at: string | null;
             /** Status */
             status: string;
         };
@@ -439,6 +441,8 @@ export interface components {
             metrics: {
                 [key: string]: unknown;
             } | null;
+            /** Started At */
+            started_at: string | null;
             /** Status */
             status: string;
         };

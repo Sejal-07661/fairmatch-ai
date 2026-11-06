@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 60
     celery_eager: bool = False
+    run_timeout_minutes: int = 30
+    pending_grace_minutes: int = 5
 
     @field_validator("jwt_secret")
     @classmethod

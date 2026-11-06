@@ -24,6 +24,8 @@ beforeEach(() => {
   );
 });
 
+beforeAll(() => Promise.all([import("./pages/Runs"), import("./pages/RunDetail")]));
+
 describe("App", () => {
   it("test_app_renders_login_when_signed_out", () => {
     renderApp(<App />, { route: "/" });
@@ -66,10 +68,10 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
 
-  it("test_admin_lands_on_runs_with_admin_nav", () => {
+  it("test_admin_lands_on_runs_with_admin_nav", async () => {
     saveToken(makeToken({ role: "admin" }));
     renderApp(<App />, { route: "/" });
-    expect(screen.getByRole("heading", { name: "Runs" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Runs" })).toBeInTheDocument();
     const nav = screen.getByRole("navigation");
     for (const name of ["Runs", "Opportunities", "Candidates"]) {
       expect(nav).toHaveTextContent(name);

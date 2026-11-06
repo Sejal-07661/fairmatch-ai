@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "gen:api": "openapi-typescript ../fairmatch/openapi.json -o src/api/schema.d.ts",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "test:deploy": "node deploy/nginx.test.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.4",

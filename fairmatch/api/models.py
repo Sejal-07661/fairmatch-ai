@@ -66,6 +66,7 @@ class AllocationRun(Base):
     metrics: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     fairness: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=_now)
+    started_at: Mapped[datetime | None] = mapped_column(nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
 

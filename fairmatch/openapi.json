@@ -487,6 +487,18 @@
             ],
             "title": "Metrics"
           },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -500,6 +512,7 @@
           "metrics",
           "fairness",
           "created_at",
+          "started_at",
           "finished_at",
           "allocations"
         ],
@@ -568,6 +581,18 @@
             ],
             "title": "Metrics"
           },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -581,6 +606,7 @@
           "metrics",
           "fairness",
           "created_at",
+          "started_at",
           "finished_at"
         ],
         "title": "RunSummaryOut",

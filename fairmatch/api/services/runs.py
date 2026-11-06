@@ -1,11 +1,12 @@
 import dataclasses
 import logging
 import math
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
+from api.config import get_settings
 from api.models import (
     Allocation,
     AllocationRun,
@@ -51,6 +52,39 @@ def create_run(session: Session, user: User, algorithm: str) -> AllocationRun:
     return run
 
 
+def _naive_utc(dt: datetime | None = None) -> datetime:
+    """Columns are timezone-naive and hold UTC; normalise any input to that."""
+    dt = dt or datetime.now(UTC)
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(UTC).replace(tzinfo=None)
+    return dt
+
+
+def reclaim_stuck_runs(session: Session, now: datetime | None = None) -> list[int]:
+    """Reset expired `running` runs to `pending` and return every run id to re-enqueue
+    (those reset plus `pending` runs older than the grace period)."""
+    s = get_settings()
+    now_n = _naive_utc(now)
+    stale_running = now_n - timedelta(minutes=s.run_timeout_minutes)
+    stale_pending = now_n - timedelta(minutes=s.pending_grace_minutes)
+    ids: list[int] = []
+    for run in session.scalars(
+        select(AllocationRun).where(AllocationRun.status.in_(("running", "pending")))
+        .order_by(AllocationRun.id)
+    ):
+        if run.status == "running":
+            # started_at missing on a running row (legacy) counts as expired
+            if run.started_at is None or _naive_utc(run.started_at) < stale_running:
+                run.status = "pending"
+                run.started_at = None
+                run.error = None
+                ids.append(run.id)
+        elif _naive_utc(run.created_at) < stale_pending:
+            ids.append(run.id)
+    session.commit()
+    return ids
+
+
 def mark_failed(session: Session, run_id: int, message: str) -> None:
     session.execute(
         update(AllocationRun)
@@ -68,10 +102,21 @@ def _finite(x: float, what: str) -> float:
 
 
 def execute_run(session: Session, run_id: int) -> None:
+    now_n = _naive_utc()
+    expired = now_n - timedelta(minutes=get_settings().run_timeout_minutes)
     claim = session.execute(
         update(AllocationRun)
-        .where(AllocationRun.id == run_id, AllocationRun.status.in_(("pending", "failed")))
-        .values(status="running", error=None, finished_at=None)
+        .where(
+            AllocationRun.id == run_id,
+            or_(
+                AllocationRun.status.in_(("pending", "failed")),
+                and_(
+                    AllocationRun.status == "running",
+                    or_(AllocationRun.started_at.is_(None), AllocationRun.started_at < expired),
+                ),
+            ),
+        )
+        .values(status="running", error=None, finished_at=None, started_at=now_n)
     )
     session.commit()
     if claim.rowcount != 1:

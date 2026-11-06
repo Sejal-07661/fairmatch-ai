@@ -7,8 +7,6 @@ openai
 fairlearn
 pymupdf
 python-docx
-pytest
-ruff
 fastapi
 uvicorn
 pydantic-settings
@@ -18,8 +16,6 @@ psycopg[binary]
 pgvector
 celery
 redis
-fakeredis
 bcrypt
 python-jose
 python-multipart
-httpx
