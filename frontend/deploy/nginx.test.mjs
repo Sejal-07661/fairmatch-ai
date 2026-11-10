@@ -46,6 +46,15 @@ if (conf) {
     has(/^\s*client_max_body_size\s+6m;/m, "client_max_body_size 6m");
     has(/^\s*proxy_read_timeout\s+60s;/m, "proxy_read_timeout 60s");
   });
+  await check("gzip is on for css, js, json and svg with Vary", () => {
+    has(/^\s*gzip\s+on;/m, "gzip on");
+    has(/^\s*gzip_vary\s+on;/m, "gzip_vary on");
+    const m = conf.match(/^\s*gzip_types\s+([^;]+);/m);
+    assert.ok(m, "gzip_types");
+    const types = m[1].trim().split(/\s+/);
+    for (const t of ["text/css", "application/json", "image/svg+xml"]) assert.ok(types.includes(t), `gzip_types ${t}`);
+    assert.ok(types.includes("application/javascript") || types.includes("text/javascript"), "gzip_types js");
+  });
   await check("security headers present exactly, on every response (always)", () => {
     for (const [k, v] of Object.entries(HEADERS)) {
       has(new RegExp(String.raw`add_header\s+${esc(k)}\s+"${esc(v)}"\s+always;`), `header ${k}`);

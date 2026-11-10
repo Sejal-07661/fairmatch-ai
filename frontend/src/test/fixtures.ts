@@ -64,6 +64,7 @@ export function makeRun(overrides: Partial<Run> = {}): Run {
     created_at: "2026-11-04T10:00:00Z",
     started_at: "2026-11-04T10:00:01Z",
     finished_at: "2026-11-04T10:00:05Z",
+    requested_by_email: "admin@example.com",
     allocations: [makeAllocation()],
     ...overrides,
   };

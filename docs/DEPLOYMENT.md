@@ -77,7 +77,7 @@ On push and pull request to `main` or `master`: `backend` (ruff, pytest without 
 
 ## Known limitations
 
-- No audit-trail view: the dashboard shows run history, allocations, fairness and explanations per run, but not who requested a run or the scoring weights.
+- Audit trail is limited: the run detail page shows who started a run (email of the requesting admin, or unknown if that user was deleted), timestamps, duration, error and fairness-skipped reason. Run records do not store the scoring weights, input snapshots or later edits to candidates and opportunities, so the audit trail shows who started a run and when, not a full reproduction of its inputs.
 - PostgreSQL and pgvector behaviour is verified offline and by the `pytest -m db` CI job only; everyday local tests use SQLite and an in-memory Redis fake.
 - The Docker path is verified by static tests and the CI image build only.
 - Education detection on the no-API-key path uses regular expressions with edge cases (unusual spellings of degrees can be missed or misread).

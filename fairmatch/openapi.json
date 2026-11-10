@@ -487,6 +487,17 @@
             ],
             "title": "Metrics"
           },
+          "requested_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By Email"
+          },
           "started_at": {
             "anyOf": [
               {
@@ -580,6 +591,17 @@
               }
             ],
             "title": "Metrics"
+          },
+          "requested_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By Email"
           },
           "started_at": {
             "anyOf": [

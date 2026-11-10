@@ -97,7 +97,7 @@ describe("RunDetail polling (fake timers)", () => {
     );
     open();
     await advance(1600);
-    expect(screen.getByText("solver exploded")).toBeInTheDocument();
+    expect(screen.getAllByText("solver exploded").length).toBeGreaterThan(0);
     expect(screen.queryByRole("tablist")).toBeNull();
     await advance(20_000);
     expect(n).toBe(2);
@@ -311,7 +311,7 @@ describe("RunDetail tabs", () => {
     serveRun(doneRun({ fairness: null, metrics: makeMetrics({ fairness_skipped: "No demographics recorded" }) }));
     open();
     await userEvent.click(await screen.findByRole("tab", { name: "Fairness" }));
-    expect(screen.getByText("No demographics recorded")).toBeInTheDocument();
+    expect(within(screen.getByRole("tabpanel")).getByText("No demographics recorded")).toBeInTheDocument();
   });
 
   it("test_fairness_null_without_reason_is_honest_empty_state", async () => {

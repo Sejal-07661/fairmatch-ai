@@ -109,4 +109,21 @@ describe("Runs page", () => {
     renderApp(<App />, { route: "/runs" });
     expect((await screen.findAllByRole("link", { name: "Run 1" })).length).toBe(2);
   });
+
+  it("test_started_by_column_shows_email_or_unknown", async () => {
+    admin();
+    server.use(
+      http.get("/api/runs", () =>
+        HttpResponse.json([
+          summary({ id: 2, requested_by_email: null }),
+          summary({ id: 1, requested_by_email: "ops@example.com" }),
+        ]),
+      ),
+    );
+    renderApp(<App />, { route: "/runs" });
+    const table = await screen.findByRole("table");
+    expect(within(table).getByRole("columnheader", { name: /Started by/ })).toBeInTheDocument();
+    expect(within(table).getByText("ops@example.com")).toBeInTheDocument();
+    expect(within(table).getByText("Unknown")).toBeInTheDocument();
+  });
 });

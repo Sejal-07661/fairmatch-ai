@@ -69,10 +69,14 @@ A killed worker (or a dead prefork child) is therefore recovered within `RUN_TIM
 - The dashboard keeps the token in `sessionStorage` and hides admin routes from candidates, but the server enforces roles.
 - Every error response is `{"detail": "<message>"}`, including 422 and unhandled 500s.
 
+### Audit trail
+
+`GET /runs` and `GET /runs/{id}` (admin only) include `requested_by_email`, looked up from the `users` row referenced by `allocation_runs.requested_by` (`null` if that user no longer exists). The run detail page renders an "Audit trail" section as plain text: run id, algorithm, status, started by, created/started/finished times, duration, error and the fairness-skipped reason; the Runs list has a Started by column. Run records do not store the scoring weights, input snapshots or later edits to candidates and opportunities, so the audit trail shows who started a run and when, not a full reproduction of its inputs.
+
 ## Privacy rule
 
 Demographic group labels are stored in a separate table and are read only to build the `group_of` mapping for `fairness.audit` in `api/services/runs.py`. They are not inputs to parsing, scoring, allocation or explanations, and no candidate-facing response includes them. If any candidate lacks a label the run still completes and the fairness section is skipped with a note (`fairness_skipped` in the run metrics).
 
 ## Frontend
 
-Vite + React + TypeScript with TanStack Query. Admin pages (opportunities, runs, run detail with Recharts charts) are lazy-loaded. Types are generated from the committed `fairmatch/openapi.json`. In production nginx serves the built files, falls back to `index.html` for deep links such as `/runs/3`, returns a real 404 for a missing `/assets/*` file, proxies `/api/` to the API with the prefix stripped, rejects bodies over 6 MiB, and sets a strict Content-Security-Policy and other security headers (`frontend/deploy/nginx.conf`).
+Vite + React + TypeScript with TanStack Query. Admin pages (opportunities, runs, run detail with Recharts charts) are lazy-loaded. Types are generated from the committed `fairmatch/openapi.json`. In production nginx serves the built files, falls back to `index.html` for deep links such as `/runs/3`, returns a real 404 for a missing `/assets/*` file, proxies `/api/` to the API with the prefix stripped, rejects bodies over 6 MiB, and gzip-compresses css, js, json and svg, and sets a strict Content-Security-Policy and other security headers (`frontend/deploy/nginx.conf`).

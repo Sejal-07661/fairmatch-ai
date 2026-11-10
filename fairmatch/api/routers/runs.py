@@ -54,7 +54,23 @@ def start_run(body: RunIn, admin: Admin, session: Sess):
 @router.get("", response_model=list[RunSummaryOut])
 def list_runs(_admin: Admin, session: Sess, limit: LimitQuery = 50, offset: OffsetQuery = 0):
     q = select(AllocationRun).order_by(AllocationRun.id.desc()).limit(limit).offset(offset)
-    return list(session.scalars(q))
+    runs = list(session.scalars(q))
+    emails = _emails(session, runs)
+    return [_summary(r, emails) for r in runs]
+
+
+def _emails(session: Session, runs: list[AllocationRun]) -> dict[int, str]:
+    ids = {r.requested_by for r in runs}
+    if not ids:
+        return {}
+    rows = session.execute(select(User.id, User.email).where(User.id.in_(ids)))
+    return {uid: email for uid, email in rows}
+
+
+def _summary(run: AllocationRun, emails: dict[int, str]) -> RunSummaryOut:
+    out = RunSummaryOut.model_validate(run)
+    out.requested_by_email = emails.get(run.requested_by)
+    return out
 
 
 def _get_run(session: Session, run_id: int) -> AllocationRun:
@@ -74,7 +90,7 @@ def _allocations(session: Session, run: AllocationRun) -> list[Allocation]:
 @router.get("/{run_id}", response_model=RunOut)
 def get_run(run_id: IdPath, _admin: Admin, session: Sess):
     run = _get_run(session, run_id)
-    data = RunSummaryOut.model_validate(run).model_dump()
+    data = _summary(run, _emails(session, [run])).model_dump()
     data["allocations"] = _allocations(session, run)
     return RunOut.model_validate(data)
 

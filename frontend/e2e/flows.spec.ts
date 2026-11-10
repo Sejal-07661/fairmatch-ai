@@ -117,7 +117,11 @@ test("3. a run with missing demographics shows the exact reason", async ({ page 
   await page.getByRole("button", { name: "Start run" }).click();
   await expect(page.getByRole("tab", { name: "Fairness" })).toBeVisible({ timeout: 90_000 });
   await page.getByRole("tab", { name: "Fairness" }).click();
-  await expect(page.getByText("demographics missing for 1 of 3 candidates")).toBeVisible();
+  await expect(page.getByText("demographics missing for 1 of 3 candidates").first()).toBeVisible();
+  const trail = page.getByRole("region", { name: "Audit trail" });
+  await expect(trail).toContainText(ADMIN.email);
+  await expect(trail).toContainText("demographics missing for 1 of 3 candidates");
+  await expect(trail).not.toContainText("Invalid Date");
 });
 
 test("4. a candidate cannot open /runs and no /api/runs request is made", async ({ page }) => {

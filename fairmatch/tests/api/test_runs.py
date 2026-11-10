@@ -344,3 +344,38 @@ def test_list_runs_newest_first(session, client):
     assert r.status_code == 200 and [x["id"] for x in r.json()] == newest
     assert [x["id"] for x in client.get("/runs?limit=2", headers=h).json()] == newest[:2]
     assert [x["id"] for x in client.get("/runs?offset=2", headers=h).json()] == newest[2:]
+
+
+def test_run_list_and_detail_expose_requested_by_email(session, client):
+    h = _admin(session, client)
+    _seed(session)
+    rid = client.post("/runs", json={"algorithm": "hungarian"}, headers=h).json()["id"]
+    assert client.get(f"/runs/{rid}", headers=h).json()["requested_by_email"] == "admin@x.com"
+    listed = client.get("/runs", headers=h).json()
+    assert [r["requested_by_email"] for r in listed] == ["admin@x.com"]
+    assert "password_hash" not in str(listed)
+
+
+def test_requested_by_email_is_none_when_user_row_is_gone(session, client):
+    h = _admin(session, client)
+    admin = session.scalars(select(User)).first()
+    run = AllocationRun(requested_by=admin.id, algorithm="both", status="pending")
+    session.add(run)
+    session.commit()
+    ghost = AllocationRun(requested_by=9999, algorithm="both", status="pending")
+    session.add(ghost)
+    session.commit()
+    assert client.get(f"/runs/{ghost.id}", headers=h).json()["requested_by_email"] is None
+    by_id = {r["id"]: r for r in client.get("/runs", headers=h).json()}
+    assert by_id[ghost.id]["requested_by_email"] is None
+    assert by_id[run.id]["requested_by_email"] == "admin@x.com"
+
+
+def test_candidate_cannot_read_requested_by_email(session, client):
+    h = _admin(session, client)
+    _seed(session)
+    rid = client.post("/runs", json={"algorithm": "hungarian"}, headers=h).json()["id"]
+    ch = _hdr(client, "cand0@x.com")
+    for path in ("/runs", f"/runs/{rid}"):
+        r = client.get(path, headers=ch)
+        assert r.status_code == 403 and "admin@x.com" not in r.text

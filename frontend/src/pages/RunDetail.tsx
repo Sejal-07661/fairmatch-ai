@@ -4,14 +4,14 @@ import { useRun } from "../api/hooks";
 import { ApiError } from "../api/client";
 import { ALGORITHM_LABELS, ALGORITHM_NAMES, type RunFairness, type RunMetrics } from "../api/types";
 import type { ParseResult } from "../api/types";
+import { AuditTrail } from "../components/AuditTrail";
 import { AllocationTable } from "../components/AllocationTable";
 import ComparisonCharts from "../components/charts/ComparisonCharts";
 import FairnessCharts from "../components/charts/FairnessCharts";
 import { ExplanationPanel } from "../components/ExplanationPanel";
 import { RunStatus, normalizeStatus } from "../components/RunStatus";
 import { errorMessage } from "../lib/errors";
-import { formatTimestamp, parseApiDate } from "../lib/format";
-import { algorithmLabel } from "../lib/runs";
+import { parseApiDate } from "../lib/format";
 
 const TABS = [
   { id: "results", label: "Results" },
@@ -70,12 +70,6 @@ function Tabs({ panels }: { panels: Record<TabId, ReactNode> }) {
       </div>
     </div>
   );
-}
-
-function Time({ raw }: { raw: unknown }) {
-  if (raw === null || raw === undefined) return <>—</>;
-  const t = formatTimestamp(raw);
-  return <time title={t.title}>{t.text}</time>;
 }
 
 function Comparison({ metrics }: { metrics: ParseResult<RunMetrics> }) {
@@ -147,20 +141,13 @@ export default function RunDetail() {
   return (
     <section className="min-w-0 space-y-4">
       <h1 className="text-2xl font-semibold">{`Run #${run.id}`}</h1>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt className="font-medium">Algorithm</dt>
-        <dd>{algorithmLabel(String(run.algorithm))}</dd>
-        <dt className="font-medium">Created</dt>
-        <dd><Time raw={run.created_at} /></dd>
-        <dt className="font-medium">Finished</dt>
-        <dd><Time raw={run.finished_at} /></dd>
-      </dl>
       <RunStatus
         run={run}
         waitingSince={created ? created.getTime() : null}
         onRefresh={() => void q.refetch()}
         refreshing={q.isFetching}
       />
+      <AuditTrail run={run} skippedReason={metrics.ok ? metrics.data.fairness_skipped : undefined} />
       {q.isError && (
         <p role="alert" className="break-words text-red-700">{`Could not refresh this run: ${errorMessage(q.error)}`}</p>
       )}

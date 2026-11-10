@@ -413,6 +413,8 @@ export interface components {
             metrics: {
                 [key: string]: unknown;
             } | null;
+            /** Requested By Email */
+            requested_by_email?: string | null;
             /** Started At */
             started_at: string | null;
             /** Status */
@@ -441,6 +443,8 @@ export interface components {
             metrics: {
                 [key: string]: unknown;
             } | null;
+            /** Requested By Email */
+            requested_by_email?: string | null;
             /** Started At */
             started_at: string | null;
             /** Status */

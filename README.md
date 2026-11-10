@@ -111,7 +111,7 @@ Component READMEs: [fairmatch/README.md](fairmatch/README.md), [frontend/README.
 
 ## Known limitations
 
-- No audit-trail view in the dashboard. Run history (`/runs`) and per-run allocations, fairness and explanations exist, but who requested a run and the scoring weights are not exposed.
+- The admin audit trail (run detail page, plus a Started by column in `/runs`) shows who started a run and its timestamps, duration, error and fairness-skipped reason. Run records do not store the scoring weights, input snapshots or later edits to candidates and opportunities, so the audit trail shows who started a run and when, not a full reproduction of its inputs.
 - PostgreSQL and pgvector are verified only offline in this repo's local test runs and by the `pytest -m db` job in CI; day-to-day local tests use SQLite.
 - The Docker path is verified by static tests and the CI image build only (see above).
 - On the no-API-key path, education is detected by regular expressions, which have edge cases (unusual degree spellings can be missed or misread). Set `OPENAI_API_KEY` for LLM parsing.

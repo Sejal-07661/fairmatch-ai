@@ -43,6 +43,12 @@ const columns: Column<Row>[] = [
     header: "Status",
     render: (r) => <RunStatusBadge status={r.run.status} />,
   },
+  {
+    key: "started_by",
+    header: "Started by",
+    render: (r) => (typeof r.run.requested_by_email === "string" && r.run.requested_by_email !== "" ? r.run.requested_by_email : "Unknown"),
+    sortValue: (r) => r.run.requested_by_email ?? "",
+  },
   { key: "created", header: "Created", render: (r) => <Time raw={r.run.created_at} /> },
   { key: "finished", header: "Finished", render: (r) => <Time raw={r.run.finished_at} /> },
 ];

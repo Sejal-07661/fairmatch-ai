@@ -43,7 +43,7 @@ npm run gen:api
 ## Roles
 
 - Candidate: `/profile` only (upload a resume as text or a .pdf/.docx/.txt file, see extracted skills). Candidates never fetch or see demographics or fairness data.
-- Admin: opportunities, candidates (with demographic group labels), runs, results, comparison, fairness and explanations.
+- Admin: opportunities, candidates (with demographic group labels), runs (with a Started by column), per-run audit trail, results, comparison, fairness and explanations.
 - A candidate opening an admin URL sees a Forbidden page and no admin request is made. The server stays authoritative.
 
 ## Token storage

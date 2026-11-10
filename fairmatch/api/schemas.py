@@ -180,6 +180,7 @@ class RunSummaryOut(BaseModel):
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+    requested_by_email: str | None = None
 
 
 class RunOut(RunSummaryOut):
