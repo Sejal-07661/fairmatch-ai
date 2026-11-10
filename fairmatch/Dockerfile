@@ -8,7 +8,7 @@ RUN pip wheel --wheel-dir /wheels --extra-index-url https://download.pytorch.org
     -r requirements.txt
 
 FROM python:3.13-slim
-ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 HF_HOME=/opt/hf PIP_NO_CACHE_DIR=1
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 HF_HOME=/opt/hf PIP_NO_CACHE_DIR=1 PYTHONPATH=/app
 WORKDIR /app
 COPY requirements.txt .
 RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \

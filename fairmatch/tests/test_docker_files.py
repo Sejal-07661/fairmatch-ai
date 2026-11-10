@@ -54,3 +54,10 @@ def test_entrypoint_is_exec_form():
 def test_dockerignore_patterns_match_nested_dirs():
     lines = {ln.strip() for ln in _read(".dockerignore").splitlines()}
     assert {"**/__pycache__", "**/*.pyc"} <= lines
+
+
+def test_dockerfile_sets_pythonpath_for_celery():
+    # The `celery` console script does not put the working directory on sys.path,
+    # so the worker could not import `core` without PYTHONPATH=/app (found in a real run).
+    text = (Path(__file__).resolve().parent.parent / "Dockerfile").read_text()
+    assert "PYTHONPATH=/app" in text
